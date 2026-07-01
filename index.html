@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pencatatan Keuangan</title>
+<title>Ledger — Pencatatan Keuangan</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2334D8A6'/%3E%3Cstop offset='100%25' stop-color='%23F2B84B'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='2' width='60' height='60' rx='14' fill='%230B1220'/%3E%3Crect x='12' y='20' width='40' height='26' rx='5' fill='url(%23g)'/%3E%3Crect x='12' y='20' width='40' height='8' rx='5' fill='%230B1220' opacity='0.3'/%3E%3Ccircle cx='42' cy='33' r='5' fill='%230B1220' opacity='0.35'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -441,7 +441,7 @@ tr:last-child td{border-bottom:none;}
 
 <!-- ── MOBILE TOP BAR ── -->
 <div class="mobile-topbar" id="mobileTopbar" style="display:none;">
-  <div class="mobile-brand"><div class="dot"></div>Finance Tracker</div>
+  <div class="mobile-brand"><div class="dot"></div>Ledger</div>
   <div class="mobile-meta">
     <span class="mobile-sync" id="mobileSyncDot"></span>
     <button class="mobile-user-btn" onclick="openMobileDrawer()" id="mobileUserBtn">Akun</button>
@@ -528,7 +528,7 @@ tr:last-child td{border-bottom:none;}
 ═══════════════════════════════════════════════════ -->
 <div id="authScreen">
   <div class="auth-box">
-    <div class="auth-logo"><div class="dot"></div>Selamat Datang!</div>
+    <div class="auth-logo"><div class="dot"></div>Ledger</div>
     <p style="color:var(--muted);font-size:13.5px;margin-bottom:22px;">Masuk atau daftar untuk mengakses data keuanganmu dari perangkat manapun.</p>
     <div class="auth-tabs">
       <div class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Masuk</div>
@@ -554,7 +554,7 @@ tr:last-child td{border-bottom:none;}
 ═══════════════════════════════════════════════════ -->
 <div id="app">
   <div class="sidebar">
-    <div class="brand"><div class="dot"></div><div>Finance Tracker<small>Pencatatan Keuangan</small></div></div>
+    <div class="brand"><div class="dot"></div><div>Ledger<small>FINANCE OS</small></div></div>
     <div class="nav-item active" data-page="dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard
     </div>
@@ -1055,6 +1055,7 @@ async function onLogin() {
     document.getElementById('loadingCover').classList.add('hidden');
     document.getElementById('app').classList.add('visible');
     renderAll();
+    initBackButtonNav();
   } catch(e) {
     dbg('Error saat onLogin: ' + e.message, 'err');
     document.getElementById('loadingCover').innerHTML = `<div style="color:var(--coral);text-align:center;padding:20px;">
@@ -1206,11 +1207,77 @@ function getBalance(accId) {
    NAVIGATION
 ════════════════════════════════════════════════ */
 document.querySelectorAll('.nav-item').forEach(el => el.addEventListener('click', ()=>goPage(el.dataset.page)));
-function goPage(name) {
+function goPage(name, fromPopstate) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   renderAll();
+  if (!fromPopstate) {
+    history.pushState({page: name}, '', location.href);
+  }
+}
+
+/* ════════════════════════════════════════════════
+   TOMBOL BACK (browser/HP) — navigasi di dalam app
+   dulu sebelum keluar dari website
+════════════════════════════════════════════════ */
+let _histReady = false;
+let _currentOverlayId = null;
+
+function currentPageName() {
+  const active = document.querySelector('.page.active');
+  return active ? active.id.replace('page-','') : 'dashboard';
+}
+
+function hideOverlayElement(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.classList.contains('mobile-drawer')) el.classList.remove('open');
+  else el.classList.remove('active');
+}
+function showOverlayElement(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.classList.contains('mobile-drawer')) el.classList.add('open');
+  else el.classList.add('active');
+}
+
+// Panggil ini setiap kali modal/drawer DIBUKA (setelah class 'active'/'open' ditambahkan)
+function pushOverlayState(id) {
+  _currentOverlayId = id;
+  history.pushState({page: currentPageName(), overlay: id}, '', location.href);
+}
+// Panggil ini setiap kali modal/drawer DITUTUP lewat tombol (Batal/X/Simpan), BUKAN lewat tombol back
+function popOverlayState(id) {
+  if (_currentOverlayId === id && history.state && history.state.overlay === id) {
+    _currentOverlayId = null;
+    history.back(); // konsisten dengan history stack, popstate handler akan sembunyikan overlay-nya
+  } else {
+    hideOverlayElement(id); // fallback kalau state tidak sinkron
+  }
+}
+
+function initBackButtonNav() {
+  if (_histReady) return;
+  _histReady = true;
+  history.replaceState({page: 'dashboard'}, '', location.href);
+
+  window.addEventListener('popstate', (e) => {
+    const state = e.state || {page: 'dashboard'};
+
+    // Tutup overlay yang sedang terbuka kalau state tujuan bukan overlay itu
+    if (_currentOverlayId && state.overlay !== _currentOverlayId) {
+      hideOverlayElement(_currentOverlayId);
+      _currentOverlayId = null;
+    }
+    if (state.overlay) {
+      showOverlayElement(state.overlay);
+      _currentOverlayId = state.overlay;
+    }
+    if (state.page) {
+      goPage(state.page, true);
+    }
+  });
 }
 
 /* ════════════════════════════════════════════════
@@ -1390,8 +1457,8 @@ function renderAll(){renderAccounts();renderStats();renderRecent();renderTxPage(
    MODALS
 ════════════════════════════════════════════════ */
 let txType='in';
-function openTxModal(){document.getElementById('iDate').value=today();document.getElementById('iDesc').value='';document.getElementById('iAmount').value='';setTxType('in');document.getElementById('iAccount').innerHTML=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');document.getElementById('txOverlay').classList.add('active');}
-function closeTxModal(){document.getElementById('txOverlay').classList.remove('active');}
+function openTxModal(){document.getElementById('iDate').value=today();document.getElementById('iDesc').value='';document.getElementById('iAmount').value='';setTxType('in');document.getElementById('iAccount').innerHTML=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');document.getElementById('txOverlay').classList.add('active');pushOverlayState('txOverlay');}
+function closeTxModal(){popOverlayState('txOverlay');}
 function setTxType(t){txType=t;document.getElementById('btnIn').classList.toggle('active',t==='in');document.getElementById('btnOut').classList.toggle('active',t==='out');document.getElementById('iCategory').innerHTML=(t==='in'?CAT_IN:CAT_OUT).map(c=>`<option value="${c}">${c}</option>`).join('');}
 async function saveTx(){
   const desc=document.getElementById('iDesc').value.trim(),amount=parseFloat(document.getElementById('iAmount').value),account=document.getElementById('iAccount').value,category=document.getElementById('iCategory').value,date=document.getElementById('iDate').value;
@@ -1405,8 +1472,8 @@ async function saveTx(){
 }
 async function deleteTx(id){if(!confirm('Hapus transaksi ini?'))return;setSyncStatus('syncing','Menghapus...');await _supabase.from('transactions').delete().eq('id',id).eq('user_id',currentUser.id);await loadAllData();renderAll();}
 
-function openTransferModal(){const opts=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name} (${fmt(getBalance(a.id))})</option>`).join('');document.getElementById('trFrom').innerHTML=opts;document.getElementById('trTo').innerHTML=opts;document.getElementById('trTo').selectedIndex=1;document.getElementById('trAmount').value='';document.getElementById('trNote').value='';document.getElementById('trDate').value=today();document.getElementById('trOverlay').classList.add('active');}
-function closeTrModal(){document.getElementById('trOverlay').classList.remove('active');}
+function openTransferModal(){const opts=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name} (${fmt(getBalance(a.id))})</option>`).join('');document.getElementById('trFrom').innerHTML=opts;document.getElementById('trTo').innerHTML=opts;document.getElementById('trTo').selectedIndex=1;document.getElementById('trAmount').value='';document.getElementById('trNote').value='';document.getElementById('trDate').value=today();document.getElementById('trOverlay').classList.add('active');pushOverlayState('trOverlay');}
+function closeTrModal(){popOverlayState('trOverlay');}
 async function saveTr(){
   const from=document.getElementById('trFrom').value,to=document.getElementById('trTo').value,amount=parseFloat(document.getElementById('trAmount').value),note=document.getElementById('trNote').value.trim(),date=document.getElementById('trDate').value;
   if(from===to){alert('Akun asal dan tujuan tidak boleh sama.');return;}
@@ -1451,11 +1518,12 @@ function openBudgetModal(editCat){
     delBtn.style.display = 'none';
   }
   document.getElementById('budgetOverlay').classList.add('active');
+  pushOverlayState('budgetOverlay');
 }
 
 function closeBudgetModal(){
-  document.getElementById('budgetOverlay').classList.remove('active');
   document.getElementById('bCat').disabled = false;
+  popOverlayState('budgetOverlay');
 }
 
 async function saveBudget(){
@@ -1491,8 +1559,8 @@ async function deleteBudget(){
   renderAll();
 }
 
-function openObModal(){document.getElementById('obFields').innerHTML=ACCOUNTS_CFG.map(a=>`<div class="m-field"><label>${a.name}</label><input type="number" id="ob_${a.id}" placeholder="0" value="${openingBals[a.id]||0}" min="0"></div>`).join('');document.getElementById('obOverlay').classList.add('active');}
-function closeObModal(){document.getElementById('obOverlay').classList.remove('active');}
+function openObModal(){document.getElementById('obFields').innerHTML=ACCOUNTS_CFG.map(a=>`<div class="m-field"><label>${a.name}</label><input type="number" id="ob_${a.id}" placeholder="0" value="${openingBals[a.id]||0}" min="0"></div>`).join('');document.getElementById('obOverlay').classList.add('active');pushOverlayState('obOverlay');}
+function closeObModal(){popOverlayState('obOverlay');}
 async function saveOb(){
   const btn=document.getElementById('saveObBtn');btn.disabled=true;btn.textContent='Menyimpan...';
   setSyncStatus('syncing','Menyimpan saldo awal...');
@@ -1553,11 +1621,10 @@ function showConfigScreen() {
 ════════════════════════════════════════════════ */
 function openMobileDrawer() {
   const d = document.getElementById('mobileDrawer');
-  if (d) d.classList.add('open');
+  if (d) { d.classList.add('open'); pushOverlayState('mobileDrawer'); }
 }
 function closeMobileDrawer() {
-  const d = document.getElementById('mobileDrawer');
-  if (d) d.classList.remove('open');
+  popOverlayState('mobileDrawer');
 }
 
 /* ════════════════════════════════════════════════
@@ -1601,11 +1668,12 @@ function openAccModal(editId) {
     buildColorPicker('gold');
   }
   modal.classList.add('active');
+  pushOverlayState('accOverlay');
   setTimeout(() => nameEl.focus(), 100);
 }
 
 function closeAccModal() {
-  document.getElementById('accOverlay').classList.remove('active');
+  popOverlayState('accOverlay');
 }
 
 async function saveAccount() {
