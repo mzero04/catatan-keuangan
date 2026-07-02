@@ -1338,7 +1338,8 @@ function pushOverlayState(id) {
 function popOverlayState(id) {
   if (_currentOverlayId === id && history.state && history.state.overlay === id) {
     _currentOverlayId = null;
-    history.back(); // konsisten dengan history stack, popstate handler akan sembunyikan overlay-nya
+    hideOverlayElement(id); // sembunyikan langsung — jangan andalkan popstate yang asinkron (bisa telat/gagal ke-trigger)
+    history.back(); // tetap panggil supaya history stack konsisten untuk tombol back berikutnya
   } else {
     hideOverlayElement(id); // fallback kalau state tidak sinkron
   }
