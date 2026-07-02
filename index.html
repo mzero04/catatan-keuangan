@@ -505,7 +505,8 @@ tr:last-child td{border-bottom:none;}
   <div class="drawer-backdrop" onclick="closeMobileDrawer()"></div>
   <div class="drawer-sheet">
     <div class="drawer-handle"></div>
-    <div class="drawer-email" id="drawerEmail">—</div>
+    <div class="drawer-email" id="drawerName" style="font-weight:700;">—</div>
+    <div class="drawer-email" id="drawerEmail" style="opacity:.65;font-size:11px;margin-top:-6px;">—</div>
     <div class="drawer-sync">
       <span class="mobile-sync" id="drawerSyncDot"></span>
       <span id="drawerSyncText">Tersinkron</span>
@@ -592,6 +593,7 @@ tr:last-child td{border-bottom:none;}
       <div class="auth-tab" id="tabRegister" onclick="switchTab('register')">Daftar</div>
     </div>
     <div class="status-box" id="authStatus"></div>
+    <div class="a-field" id="fieldFullName" style="display:none;"><label>Nama Lengkap</label><input type="text" id="authFullName" placeholder="Nama kamu, misal: Budi Santoso"></div>
     <div class="a-field"><label>Email</label><input type="email" id="authEmail" placeholder="email@kamu.com"></div>
     <div class="a-field"><label>Password</label><input type="password" id="authPass" placeholder="Minimal 6 karakter" onkeydown="if(event.key==='Enter')doAuth()"></div>
     <button class="btn" id="authBtn" onclick="doAuth()" style="margin-top:6px;">Masuk</button>
@@ -633,8 +635,9 @@ tr:last-child td{border-bottom:none;}
         <div class="sync-sub">Supabase real-time · sinkron antar perangkat</div>
       </div>
       <div class="user-card">
-        <div class="user-email" id="userEmail">—</div>
-        <button class="logout-btn" onclick="doLogout()">Keluar</button>
+        <div class="user-email" id="userName" style="margin-bottom:2px;">—</div>
+        <div class="user-email" id="userEmail" style="color:var(--muted);font-weight:500;font-size:11px;">—</div>
+        <button class="logout-btn" onclick="doLogout()" style="margin-top:8px;">Keluar</button>
       </div>
     </div>
   </div>
@@ -643,7 +646,7 @@ tr:last-child td{border-bottom:none;}
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
       <div class="page-head">
-        <div><h1>Dashboard</h1><p>Ringkasan keuangan bulan ini</p></div>
+        <div><h1 id="dashGreeting">Dashboard</h1><p>Ringkasan keuangan bulan ini</p></div>
         <div class="head-actions">
           <button class="app-btn violet" onclick="openTransferModal()">⇄ Transfer</button>
           <button class="app-btn" id="dashAddTxBtn" onclick="openTxModal()">+ Transaksi</button>
@@ -1053,6 +1056,8 @@ function switchTab(mode) {
     ? 'Belum punya akun? <span style="color:var(--mint);cursor:pointer;" onclick="switchTab(\'register\')">Daftar</span>'
     : 'Sudah punya akun? <span style="color:var(--mint);cursor:pointer;" onclick="switchTab(\'login\')">Masuk</span>';
   document.getElementById('authStatus').className='status-box';
+  const fieldFullName = document.getElementById('fieldFullName');
+  fieldFullName.style.display = mode === 'register' ? 'block' : 'none';
 }
 
 function showAuthStatus(msg, type='error') {
@@ -1063,7 +1068,9 @@ function showAuthStatus(msg, type='error') {
 async function doAuth() {
   const email = document.getElementById('authEmail').value.trim();
   const pass  = document.getElementById('authPass').value;
+  const fullName = document.getElementById('authFullName').value.trim();
   if (!email || !pass) { showAuthStatus('Email dan password wajib diisi.'); return; }
+  if (authMode === 'register' && !fullName) { showAuthStatus('Nama lengkap wajib diisi.'); return; }
   const btn = document.getElementById('authBtn');
   btn.disabled = true; btn.textContent = 'Memproses...';
   document.getElementById('authStatus').className='status-box';
@@ -1072,7 +1079,15 @@ async function doAuth() {
   if (authMode === 'login') {
     res = await _supabase.auth.signInWithPassword({ email, password: pass });
   } else {
-    res = await _supabase.auth.signUp({ email, password: pass });
+    res = await _supabase.auth.signUp({
+      email,
+      password: pass,
+      options: {
+        data: {
+          full_name: fullName
+        }
+      }
+    });
   }
 
   btn.disabled = false; btn.textContent = authMode==='login' ? 'Masuk' : 'Buat Akun';
@@ -1098,16 +1113,28 @@ async function doLogout() {
 /* ════════════════════════════════════════════════
    ON LOGIN: LOAD DATA
 ════════════════════════════════════════════════ */
+function getDisplayName() {
+  if (!currentUser) return '';
+  const meta = currentUser.user_metadata || {};
+  return meta.full_name || meta.name || (currentUser.email ? currentUser.email.split('@')[0] : 'Pengguna');
+}
+
 async function onLogin() {
   document.getElementById('authScreen').classList.remove('visible');
+  const displayName = getDisplayName();
+  document.getElementById('userName').textContent = displayName;
   document.getElementById('userEmail').textContent = currentUser.email;
+  const dg = document.getElementById('dashGreeting');
+  if (dg) dg.textContent = 'Halo, ' + displayName.split(' ')[0] + ' 👋';
   // Mobile: tampilkan topbar dan isi info user
   const topbar = document.getElementById('mobileTopbar');
   if (topbar) topbar.style.display = '';
   const mub = document.getElementById('mobileUserBtn');
-  if (mub) mub.textContent = currentUser.email.split('@')[0];
+  if (mub) mub.textContent = displayName;
   const de = document.getElementById('drawerEmail');
   if (de) de.textContent = currentUser.email;
+  const dn = document.getElementById('drawerName');
+  if (dn) dn.textContent = displayName;
   setSyncStatus('syncing', 'Memuat data...');
   try {
     await loadAllData();
