@@ -1006,8 +1006,31 @@ async function connectSupabase() {
     showCfgStatus('✅ Berhasil terhubung ke Supabase!', 'success');
     btn.textContent = '✅ Terhubung!';
 
-    setTimeout(() => {
+    setTimeout(async () => {
       document.getElementById('configScreen').classList.add('hidden');
+
+      const confirmResult = await checkEmailConfirmationRedirect();
+
+      if (confirmResult.status === 'confirmed') {
+        // Kalau link verifikasi otomatis membuat sesi, paksa logout
+        // supaya user tetap harus login manual sesuai permintaan.
+        try { await _supabase.auth.signOut(); } catch(e) {}
+        currentUser = null;
+        document.getElementById('loadingCover').classList.add('hidden');
+        document.getElementById('authScreen').classList.add('visible');
+        switchTab('login');
+        showAuthStatus('✅ Akun telah terverifikasi, silahkan login.', 'success');
+        return;
+      }
+
+      if (confirmResult.status === 'error') {
+        document.getElementById('loadingCover').classList.add('hidden');
+        document.getElementById('authScreen').classList.add('visible');
+        switchTab('login');
+        showAuthStatus('❌ Link verifikasi tidak valid atau sudah kadaluarsa. ' + confirmResult.message, 'error');
+        return;
+      }
+
       if (data.session) {
         currentUser = data.session.user;
         onLogin();
@@ -1041,6 +1064,38 @@ function resetConfig() {
   localStorage.removeItem(CFG_KEY);
   dbg('Konfigurasi dihapus, reload...');
   location.reload();
+}
+
+/* ════════════════════════════════════════════════
+   DETEKSI REDIRECT VERIFIKASI EMAIL
+   Supabase mengarahkan user kembali ke halaman ini setelah
+   klik link konfirmasi di email, dengan parameter khusus
+   di hash (#) atau query (?) URL.
+════════════════════════════════════════════════ */
+async function checkEmailConfirmationRedirect() {
+  const hash = window.location.hash ? window.location.hash.substring(1) : '';
+  const hashParams = new URLSearchParams(hash);
+  const queryParams = new URLSearchParams(window.location.search);
+  const type = hashParams.get('type') || queryParams.get('type');
+  const code = queryParams.get('code');
+  const errorDesc = hashParams.get('error_description') || queryParams.get('error_description');
+  const cleanUrl = () => window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
+
+  if (errorDesc) {
+    cleanUrl();
+    return { status: 'error', message: decodeURIComponent(errorDesc.replace(/\+/g, ' ')) };
+  }
+  if (type === 'signup') {
+    cleanUrl();
+    return { status: 'confirmed' };
+  }
+  if (code) {
+    // Alur PKCE: tukar code dengan session dulu, lalu tetap arahkan ke layar login
+    try { await _supabase.auth.exchangeCodeForSession(code); } catch(e) { dbg('exchangeCodeForSession gagal: ' + e.message, 'warn'); }
+    cleanUrl();
+    return { status: 'confirmed' };
+  }
+  return { status: 'none' };
 }
 
 /* ════════════════════════════════════════════════
