@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pencatatan Keuangan</title>
+<title>Ledger — Pencatatan Keuangan</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2334D8A6'/%3E%3Cstop offset='100%25' stop-color='%23F2B84B'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='2' width='60' height='60' rx='14' fill='%230B1220'/%3E%3Crect x='12' y='20' width='40' height='26' rx='5' fill='url(%23g)'/%3E%3Crect x='12' y='20' width='40' height='8' rx='5' fill='%230B1220' opacity='0.3'/%3E%3Ccircle cx='42' cy='33' r='5' fill='%230B1220' opacity='0.35'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -287,6 +287,31 @@ tr:last-child td{border-bottom:none;}
 
 /* ── MOBILE USER DRAWER ── */
 .mobile-drawer{display:none;position:fixed;inset:0;z-index:500;flex-direction:column;justify-content:flex-end;}
+
+/* ── STATS CAROUSEL (dots, base hidden — diaktifkan khusus mobile) ── */
+.carousel-dots{display:none;justify-content:center;gap:6px;margin-top:-8px;margin-bottom:16px;}
+.carousel-dots .dot{width:6px;height:6px;border-radius:50%;background:var(--line);transition:.2s;}
+.carousel-dots .dot.active{background:var(--mint);width:16px;border-radius:3px;}
+
+/* ── FLOATING ACTION BUTTON (mobile-only, Dashboard-only) ── */
+.mobile-fab{
+  display:none;
+  position:fixed;
+  right:18px;
+  bottom:calc(80px + env(safe-area-inset-bottom));
+  width:56px;height:56px;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--mint),#28b98a);
+  color:#06281f;
+  border:none;
+  box-shadow:0 8px 24px -4px rgba(52,216,166,.55),0 2px 8px rgba(0,0,0,.3);
+  align-items:center;justify-content:center;
+  cursor:pointer;
+  z-index:44;
+  transition:transform .15s,box-shadow .15s;
+}
+.mobile-fab:active{transform:scale(0.92);}
+.mobile-fab svg{width:26px;height:26px;stroke-width:2.4;}
 .mobile-drawer.open{display:flex;}
 .drawer-backdrop{position:absolute;inset:0;background:rgba(5,9,18,.7);backdrop-filter:blur(3px);}
 .drawer-sheet{position:relative;background:var(--card-hi);border-radius:20px 20px 0 0;border:1px solid var(--line);padding:24px 20px 32px;z-index:1;}
@@ -308,6 +333,33 @@ tr:last-child td{border-bottom:none;}
 @media(max-width:768px){
   /* Layout utama */
   #app{flex-direction:column;min-height:100vh;}
+
+  /* Floating Action Button — hanya muncul di mobile & saat class 'show' aktif */
+  .mobile-fab.show{display:flex;}
+  /* Tombol + Transaksi lama di header Dashboard digantikan FAB di mobile */
+  #dashAddTxBtn{display:none;}
+  /* Tombol ⇄ Transfer tidak ditampilkan di menu/header Dashboard saat mobile */
+  #page-dashboard .head-actions{display:none;}
+
+  /* Kartu statistik Dashboard (Total Saldo, Pemasukan, Pengeluaran, Budget)
+     → bertumpuk & bisa digeser kiri/kanan (carousel), khusus mobile */
+  .stats-carousel{
+    display:flex!important;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    gap:12px;
+    margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px;
+    scrollbar-width:none;
+  }
+  .stats-carousel::-webkit-scrollbar{display:none;}
+  .stats-carousel .card{
+    scroll-snap-align:center;
+    flex:0 0 82%;
+    min-width:82%;
+  }
+  .carousel-dots{display:flex;}
 
   /* Sidebar → Bottom Navigation */
   .sidebar{
@@ -462,6 +514,11 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+<!-- ── FLOATING ACTION BUTTON (mobile, khusus Dashboard) ── -->
+<button class="mobile-fab show" id="mobileFab" onclick="openTxModal()" aria-label="Tambah transaksi">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
 <!-- ═══════════════════════════════════════════════════
      CONFIG SCREEN
 ═══════════════════════════════════════════════════ -->
@@ -589,14 +646,17 @@ tr:last-child td{border-bottom:none;}
         <div><h1>Dashboard</h1><p>Ringkasan keuangan bulan ini</p></div>
         <div class="head-actions">
           <button class="app-btn violet" onclick="openTransferModal()">⇄ Transfer</button>
-          <button class="app-btn" onclick="openTxModal()">+ Transaksi</button>
+          <button class="app-btn" id="dashAddTxBtn" onclick="openTxModal()">+ Transaksi</button>
         </div>
       </div>
-      <div class="grid g4" style="margin-bottom:20px;">
+      <div class="grid g4 stats-carousel" id="dashStatsCarousel" style="margin-bottom:20px;">
         <div class="card stat-card balance"><div class="label">💰 Total Saldo</div><div class="value" id="sTotalBal">Rp 0</div><div class="delta" id="sTotalSub">—</div></div>
         <div class="card stat-card income"><div class="label">📈 Pemasukan Bulan Ini</div><div class="value" id="sIncome">Rp 0</div><div class="delta up" id="sIncomeSub">—</div></div>
         <div class="card stat-card expense"><div class="label">📉 Pengeluaran Bulan Ini</div><div class="value" id="sExpense">Rp 0</div><div class="delta dn" id="sExpenseSub">—</div></div>
         <div class="card"><div class="label" style="color:var(--muted);font-size:13px;font-weight:600;">🎯 Status Budget</div><div class="value" id="sBudgetStatus" style="font-size:20px;">—</div><div class="delta" id="sBudgetSub" style="color:var(--muted);">—</div></div>
+      </div>
+      <div class="carousel-dots" id="dashStatsDots">
+        <span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
       </div>
       <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
         <div style="font-family:'Sora',sans-serif;font-size:15px;font-weight:600;color:var(--muted);">Akun Kamu</div>
@@ -1204,6 +1264,30 @@ function getBalance(accId) {
 }
 
 /* ════════════════════════════════════════════════
+   DASHBOARD STATS CAROUSEL (mobile — dots sync)
+════════════════════════════════════════════════ */
+(function(){
+  const wrap = document.getElementById('dashStatsCarousel');
+  const dots = document.getElementById('dashStatsDots');
+  if (!wrap || !dots) return;
+  const dotEls = dots.querySelectorAll('.dot');
+  let ticking = false;
+  wrap.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const cards = wrap.querySelectorAll('.card');
+      if (cards.length) {
+        const cardStep = cards[1] ? (cards[1].offsetLeft - cards[0].offsetLeft) : wrap.clientWidth;
+        const idx = Math.round(wrap.scrollLeft / cardStep);
+        dotEls.forEach((d,i)=>d.classList.toggle('active', i===Math.min(idx, dotEls.length-1)));
+      }
+      ticking = false;
+    });
+  }, { passive: true });
+})();
+
+/* ════════════════════════════════════════════════
    NAVIGATION
 ════════════════════════════════════════════════ */
 document.querySelectorAll('.nav-item').forEach(el => el.addEventListener('click', ()=>goPage(el.dataset.page)));
@@ -1212,6 +1296,9 @@ function goPage(name, fromPopstate) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   renderAll();
+  // FAB tambah transaksi hanya muncul di halaman Dashboard (mobile)
+  const fab = document.getElementById('mobileFab');
+  if (fab) fab.classList.toggle('show', name === 'dashboard');
   if (!fromPopstate) {
     history.pushState({page: name}, '', location.href);
   }
