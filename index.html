@@ -629,15 +629,23 @@ tr:last-child td{border-bottom:none;}
     <div class="nav-item" data-page="budget">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Budgeting
     </div>
+    <div class="nav-item" data-page="profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg>Profil
+    </div>
     <div class="sidebar-bottom">
       <div class="sync-bar">
         <div class="sync-pill"><span class="sync-dot" id="syncDot"></span><span id="syncText">Tersinkron</span></div>
         <div class="sync-sub">Supabase real-time · sinkron antar perangkat</div>
       </div>
       <div class="user-card">
-        <div class="user-email" id="userName" style="margin-bottom:2px;">—</div>
-        <div class="user-email" id="userEmail" style="color:var(--muted);font-weight:500;font-size:11px;">—</div>
-        <button class="logout-btn" onclick="doLogout()" style="margin-top:8px;">Keluar</button>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <div id="sidebarAvatar" style="width:34px;height:34px;border-radius:50%;background:var(--card-hi);border:1px solid var(--line);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--mint);flex-shrink:0;">—</div>
+          <div style="min-width:0;">
+            <div class="user-email" id="userName" style="margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+            <div class="user-email" id="userEmail" style="color:var(--muted);font-weight:500;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+          </div>
+        </div>
+        <button class="logout-btn" onclick="doLogout()" style="margin-top:2px;">Keluar</button>
       </div>
     </div>
   </div>
@@ -725,6 +733,68 @@ tr:last-child td{border-bottom:none;}
         <div class="card"><h3>Progress Budget <span class="muted" id="budgetMonthLbl"></span></h3><div id="budgetList"></div><div class="empty" id="budgetEmpty" style="display:none;">Belum ada budget. Klik "Atur Budget" untuk mulai.</div></div>
         <div class="card"><h3>Alokasi vs Realisasi</h3><div class="chart-wrap" style="height:220px;"><canvas id="chartBudget"></canvas></div><div class="info-box" style="margin-top:14px;" id="budgetSummary"></div></div>
       </div>
+    </div>
+
+    <!-- PROFIL -->
+    <div class="page" id="page-profile">
+      <div class="page-head"><div><h1>Profil</h1><p>Kelola informasi akun kamu</p></div></div>
+
+      <div class="grid g2">
+        <!-- FOTO PROFIL -->
+        <div class="card">
+          <h3>Foto Profil</h3>
+          <div style="display:flex;align-items:center;gap:18px;margin-top:14px;">
+            <div id="avatarPreview" style="width:76px;height:76px;border-radius:50%;background:var(--card-hi);border:2px solid var(--line);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:var(--mint);flex-shrink:0;">—</div>
+            <div style="flex:1;">
+              <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="handleAvatarUpload(event)">
+              <button class="btn secondary sm" onclick="document.getElementById('avatarFileInput').click()">Pilih Foto Baru</button>
+              <p style="font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5;">JPG/PNG, maks 2MB. Foto akan langsung ter-upload setelah dipilih.</p>
+            </div>
+          </div>
+          <div class="status-box" id="avatarStatus"></div>
+        </div>
+
+        <!-- NAMA -->
+        <div class="card">
+          <h3>Nama Lengkap</h3>
+          <div class="a-field" style="margin-top:14px;"><label>Nama yang ditampilkan</label><input type="text" id="profileFullName" placeholder="Nama lengkap kamu"></div>
+          <button class="btn sm" style="width:auto;padding:9px 20px;" onclick="saveFullName()" id="saveNameBtn">Simpan Nama</button>
+          <div class="status-box" id="nameStatus"></div>
+        </div>
+      </div>
+
+      <div class="grid g2" style="margin-top:18px;">
+        <!-- EMAIL INFO -->
+        <div class="card">
+          <h3>Email Akun</h3>
+          <p style="font-size:14px;color:var(--text);margin-top:12px;font-weight:600;" id="profileEmailDisplay">—</p>
+          <p style="font-size:12px;color:var(--muted);margin-top:6px;">Email tidak bisa diganti langsung dari sini demi keamanan akun.</p>
+        </div>
+
+        <!-- GANTI PASSWORD -->
+        <div class="card">
+          <h3>Ganti Password</h3>
+          <p style="font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.6;">Demi keamanan, kami akan mengirim link verifikasi ke emailmu. Klik link itu untuk mengatur password baru.</p>
+          <button class="btn secondary sm" style="width:auto;padding:9px 20px;margin-top:12px;" onclick="sendPasswordResetEmail()" id="resetPassBtn">Kirim Link Ganti Password</button>
+          <div class="status-box" id="passResetStatus"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SET PASSWORD BARU (setelah klik link email)
+═══════════════════════════════════════════════════ -->
+<div id="resetPasswordScreen" style="display:none;position:fixed;inset:0;z-index:200;background:var(--bg);align-items:center;justify-content:center;">
+  <div style="width:100%;max-width:380px;padding:28px;">
+    <div class="card">
+      <h3 style="margin-bottom:4px;">Atur Password Baru</h3>
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:18px;">Masukkan password baru untuk akunmu.</p>
+      <div class="status-box" id="resetPwStatus"></div>
+      <div class="a-field"><label>Password Baru</label><input type="password" id="newPassInput" placeholder="Minimal 6 karakter"></div>
+      <div class="a-field"><label>Ulangi Password Baru</label><input type="password" id="newPassConfirmInput" placeholder="Ulangi password baru" onkeydown="if(event.key==='Enter')submitNewPassword()"></div>
+      <button class="btn" onclick="submitNewPassword()" id="submitNewPassBtn">Simpan Password Baru</button>
     </div>
   </div>
 </div>
@@ -979,7 +1049,7 @@ async function connectSupabase() {
 
   try {
     _supabase = window.supabase.createClient(url, key, {
-      auth: { persistSession: true, autoRefreshToken: true }
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
     });
     dbg('Client Supabase berhasil dibuat', 'ok');
   } catch(e) {
@@ -1020,6 +1090,12 @@ async function connectSupabase() {
         document.getElementById('authScreen').classList.add('visible');
         switchTab('login');
         showAuthStatus('✅ Akun telah terverifikasi, silahkan login.', 'success');
+        return;
+      }
+
+      if (confirmResult.status === 'recovery') {
+        document.getElementById('loadingCover').classList.add('hidden');
+        document.getElementById('resetPasswordScreen').style.display = 'flex';
         return;
       }
 
@@ -1078,12 +1154,24 @@ async function checkEmailConfirmationRedirect() {
   const queryParams = new URLSearchParams(window.location.search);
   const type = hashParams.get('type') || queryParams.get('type');
   const code = queryParams.get('code');
+  const accessToken = hashParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token');
   const errorDesc = hashParams.get('error_description') || queryParams.get('error_description');
   const cleanUrl = () => window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
 
   if (errorDesc) {
     cleanUrl();
     return { status: 'error', message: decodeURIComponent(errorDesc.replace(/\+/g, ' ')) };
+  }
+  if (type === 'recovery') {
+    // Alur ganti password: pasang sesi sementara dari token di link email
+    if (accessToken && refreshToken) {
+      try { await _supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }); } catch(e) { dbg('setSession gagal: ' + e.message, 'warn'); }
+    } else if (code) {
+      try { await _supabase.auth.exchangeCodeForSession(code); } catch(e) { dbg('exchangeCodeForSession gagal: ' + e.message, 'warn'); }
+    }
+    cleanUrl();
+    return { status: 'recovery' };
   }
   if (type === 'signup') {
     cleanUrl();
@@ -1166,12 +1254,157 @@ async function doLogout() {
 }
 
 /* ════════════════════════════════════════════════
+   PROFIL: GANTI NAMA
+════════════════════════════════════════════════ */
+function showBoxStatus(id, msg, type='error') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg; el.className = 'status-box show ' + type;
+}
+
+async function saveFullName() {
+  const input = document.getElementById('profileFullName');
+  const newName = input.value.trim();
+  if (!newName) { showBoxStatus('nameStatus', 'Nama tidak boleh kosong.'); return; }
+  const btn = document.getElementById('saveNameBtn');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+  const { data, error } = await _supabase.auth.updateUser({ data: { full_name: newName } });
+  btn.disabled = false; btn.textContent = 'Simpan Nama';
+  if (error) { showBoxStatus('nameStatus', '❌ ' + error.message); return; }
+  currentUser = data.user;
+  showBoxStatus('nameStatus', '✅ Nama berhasil diperbarui.', 'success');
+  // Update semua tempat yang menampilkan nama
+  const displayName = getDisplayName();
+  document.getElementById('userName').textContent = displayName;
+  const dg = document.getElementById('dashGreeting');
+  if (dg) dg.textContent = 'Halo, ' + displayName.split(' ')[0] + ' 👋';
+  const mub = document.getElementById('mobileUserBtn');
+  if (mub) mub.textContent = displayName;
+  const dn = document.getElementById('drawerName');
+  if (dn) dn.textContent = displayName;
+  renderProfileUI();
+}
+
+/* ════════════════════════════════════════════════
+   PROFIL: FOTO PROFIL (Supabase Storage bucket "avatars")
+════════════════════════════════════════════════ */
+async function handleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showBoxStatus('avatarStatus', 'File harus berupa gambar.'); return; }
+  if (file.size > 2 * 1024 * 1024) { showBoxStatus('avatarStatus', 'Ukuran foto maksimal 2MB.'); return; }
+
+  showBoxStatus('avatarStatus', 'Mengupload foto...', 'info');
+  try {
+    const ext = file.name.split('.').pop();
+    const filePath = `${currentUser.id}/avatar.${ext}`;
+    const { error: uploadError } = await _supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true, cacheControl: '3600' });
+
+    if (uploadError) {
+      if (uploadError.message && uploadError.message.toLowerCase().includes('bucket not found')) {
+        showBoxStatus('avatarStatus', '❌ Bucket "avatars" belum dibuat di Supabase Storage. Lihat instruksi setup di bawah.');
+      } else {
+        showBoxStatus('avatarStatus', '❌ ' + uploadError.message);
+      }
+      return;
+    }
+
+    const { data: urlData } = _supabase.storage.from('avatars').getPublicUrl(filePath);
+    const publicUrl = urlData.publicUrl + '?t=' + Date.now(); // cache-bust supaya foto baru langsung tampil
+
+    const { data, error } = await _supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+    if (error) { showBoxStatus('avatarStatus', '❌ ' + error.message); return; }
+
+    currentUser = data.user;
+    showBoxStatus('avatarStatus', '✅ Foto profil berhasil diperbarui.', 'success');
+    renderProfileUI();
+  } catch(e) {
+    showBoxStatus('avatarStatus', '❌ Gagal upload: ' + e.message);
+  }
+}
+
+/* ════════════════════════════════════════════════
+   PROFIL: GANTI PASSWORD (via verifikasi email)
+════════════════════════════════════════════════ */
+async function sendPasswordResetEmail() {
+  if (!currentUser || !currentUser.email) return;
+  const btn = document.getElementById('resetPassBtn');
+  btn.disabled = true; btn.textContent = 'Mengirim...';
+  const { error } = await _supabase.auth.resetPasswordForEmail(currentUser.email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  btn.disabled = false; btn.textContent = 'Kirim Link Ganti Password';
+  if (error) { showBoxStatus('passResetStatus', '❌ ' + error.message); return; }
+  showBoxStatus('passResetStatus', `✅ Link terkirim ke ${currentUser.email}. Cek inbox/spam, lalu klik link di email untuk atur password baru.`, 'success');
+}
+
+async function submitNewPassword() {
+  const pass = document.getElementById('newPassInput').value;
+  const confirm = document.getElementById('newPassConfirmInput').value;
+  if (!pass || pass.length < 6) { showBoxStatus('resetPwStatus', 'Password minimal 6 karakter.'); return; }
+  if (pass !== confirm) { showBoxStatus('resetPwStatus', 'Password dan konfirmasi tidak sama.'); return; }
+
+  const btn = document.getElementById('submitNewPassBtn');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+  const { error } = await _supabase.auth.updateUser({ password: pass });
+  btn.disabled = false; btn.textContent = 'Simpan Password Baru';
+
+  if (error) { showBoxStatus('resetPwStatus', '❌ ' + error.message); return; }
+
+  showBoxStatus('resetPwStatus', '✅ Password berhasil diubah! Mengarahkan ke aplikasi...', 'success');
+  setTimeout(async () => {
+    document.getElementById('resetPasswordScreen').style.display = 'none';
+    const { data } = await _supabase.auth.getSession();
+    if (data.session) {
+      currentUser = data.session.user;
+      document.getElementById('loadingCover').classList.remove('hidden');
+      await onLogin();
+    } else {
+      document.getElementById('authScreen').classList.add('visible');
+      switchTab('login');
+      showAuthStatus('✅ Password berhasil diubah, silahkan login dengan password baru.', 'success');
+    }
+  }, 1200);
+}
+
+/* ════════════════════════════════════════════════
    ON LOGIN: LOAD DATA
 ════════════════════════════════════════════════ */
 function getDisplayName() {
   if (!currentUser) return '';
   const meta = currentUser.user_metadata || {};
   return meta.full_name || meta.name || (currentUser.email ? currentUser.email.split('@')[0] : 'Pengguna');
+}
+
+function getAvatarUrl() {
+  if (!currentUser) return '';
+  const meta = currentUser.user_metadata || {};
+  return meta.avatar_url || '';
+}
+
+function applyAvatarToEl(el, displayName, avatarUrl) {
+  if (!el) return;
+  if (avatarUrl) {
+    el.style.backgroundImage = `url('${avatarUrl}')`;
+    el.textContent = '';
+  } else {
+    el.style.backgroundImage = 'none';
+    el.textContent = (displayName || '?').trim().charAt(0).toUpperCase();
+  }
+}
+
+function renderProfileUI() {
+  if (!currentUser) return;
+  const displayName = getDisplayName();
+  const avatarUrl = getAvatarUrl();
+  applyAvatarToEl(document.getElementById('sidebarAvatar'), displayName, avatarUrl);
+  applyAvatarToEl(document.getElementById('avatarPreview'), displayName, avatarUrl);
+  const pfn = document.getElementById('profileFullName');
+  if (pfn) pfn.value = displayName;
+  const ped = document.getElementById('profileEmailDisplay');
+  if (ped) ped.textContent = currentUser.email;
 }
 
 async function onLogin() {
@@ -1190,6 +1423,7 @@ async function onLogin() {
   if (de) de.textContent = currentUser.email;
   const dn = document.getElementById('drawerName');
   if (dn) dn.textContent = displayName;
+  renderProfileUI();
   setSyncStatus('syncing', 'Memuat data...');
   try {
     await loadAllData();
