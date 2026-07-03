@@ -1262,10 +1262,26 @@ function showBoxStatus(id, msg, type='error') {
   el.textContent = msg; el.className = 'status-box show ' + type;
 }
 
+async function ensureValidSession() {
+  try {
+    const { data, error } = await _supabase.auth.getSession();
+    if (error || !data.session) return false;
+    currentUser = data.session.user;
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+function handleSessionExpired(statusElId) {
+  showBoxStatus(statusElId, '❌ Sesi login sudah berakhir. Silahkan keluar dan login ulang.');
+}
+
 async function saveFullName() {
   const input = document.getElementById('profileFullName');
   const newName = input.value.trim();
   if (!newName) { showBoxStatus('nameStatus', 'Nama tidak boleh kosong.'); return; }
+  if (!(await ensureValidSession())) { handleSessionExpired('nameStatus'); return; }
   const btn = document.getElementById('saveNameBtn');
   btn.disabled = true; btn.textContent = 'Menyimpan...';
   const { data, error } = await _supabase.auth.updateUser({ data: { full_name: newName } });
@@ -1293,6 +1309,7 @@ async function handleAvatarUpload(event) {
   if (!file) return;
   if (!file.type.startsWith('image/')) { showBoxStatus('avatarStatus', 'File harus berupa gambar.'); return; }
   if (file.size > 2 * 1024 * 1024) { showBoxStatus('avatarStatus', 'Ukuran foto maksimal 2MB.'); return; }
+  if (!(await ensureValidSession())) { handleSessionExpired('avatarStatus'); return; }
 
   showBoxStatus('avatarStatus', 'Mengupload foto...', 'info');
   try {
@@ -1330,6 +1347,7 @@ async function handleAvatarUpload(event) {
 ════════════════════════════════════════════════ */
 async function sendPasswordResetEmail() {
   if (!currentUser || !currentUser.email) return;
+  if (!(await ensureValidSession())) { handleSessionExpired('passResetStatus'); return; }
   const btn = document.getElementById('resetPassBtn');
   btn.disabled = true; btn.textContent = 'Mengirim...';
   const { error } = await _supabase.auth.resetPasswordForEmail(currentUser.email, {
