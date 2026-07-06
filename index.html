@@ -617,6 +617,9 @@ tr:last-child td{border-bottom:none;}
     <div class="a-field" id="fieldFullName" style="display:none;"><label>Nama Lengkap</label><input type="text" id="authFullName" placeholder="Nama kamu, misal: Budi Santoso"></div>
     <div class="a-field"><label>Email</label><input type="email" id="authEmail" placeholder="email@kamu.com"></div>
     <div class="a-field"><label>Password</label><input type="password" id="authPass" placeholder="Minimal 6 karakter" onkeydown="if(event.key==='Enter')doAuth()"></div>
+    <div id="forgotPassLink" style="text-align:right;margin:-8px 0 10px;">
+      <span style="font-size:12px;color:var(--mint);cursor:pointer;" onclick="sendLoginPasswordReset()">Lupa password?</span>
+    </div>
     <button class="btn" id="authBtn" onclick="doAuth()" style="margin-top:6px;">Masuk</button>
     <div style="text-align:center;margin-top:14px;">
       <span id="authSwitch" style="font-size:12.5px;color:var(--muted);">
@@ -841,26 +844,34 @@ tr:last-child td{border-bottom:none;}
 <!-- MODAL TX -->
 <div class="overlay" id="txOverlay">
   <div class="modal">
-    <h2>Tambah Transaksi</h2>
+    <h2 id="txModalTitle">Tambah Transaksi</h2>
     <div class="toggle-group"><div class="tbtn in active" id="btnIn" onclick="setTxType('in')">↓ Pemasukan</div><div class="tbtn out" id="btnOut" onclick="setTxType('out')">↑ Pengeluaran</div></div>
     <div class="m-field"><label>Deskripsi</label><input id="iDesc" placeholder="Gaji bulanan, Beli kopi…"></div>
     <div class="field-row-flex"><div class="m-field"><label>Jumlah (Rp)</label><input type="number" id="iAmount" placeholder="0" min="0"></div><button type="button" class="calc-btn" onclick="openCalculator('iAmount')" title="Kalkulator">🧮</button></div>
     <div class="m-field"><label>Akun</label><select id="iAccount"></select></div>
     <div class="field-row-flex"><div class="m-field"><label>Kategori</label><select id="iCategory"></select></div><button type="button" class="inline-btn" onclick="openAddCategoryModal('tx')">+ Baru</button></div>
-    <div class="m-field"><label>Tanggal</label><input type="date" id="iDate"></div>
-    <div class="modal-actions"><button class="app-btn secondary" onclick="closeTxModal()">Batal</button><button class="app-btn" id="saveTxBtn" onclick="saveTx()">Simpan</button></div>
+    <div class="field-row-flex"><div class="m-field"><label>Tanggal</label><input type="date" id="iDate"></div><div class="m-field"><label>Jam</label><input type="time" id="iTime"></div></div>
+    <div class="modal-actions">
+      <button class="app-btn secondary" onclick="closeTxModal()">Batal</button>
+      <button class="app-btn danger" id="deleteTxModalBtn" style="display:none;" onclick="deleteTxFromModal()">🗑 Hapus</button>
+      <button class="app-btn" id="saveTxBtn" onclick="saveTx()">Simpan</button>
+    </div>
   </div>
 </div>
 
 <!-- MODAL TRANSFER -->
 <div class="overlay" id="trOverlay">
   <div class="modal">
-    <h2>Transfer Antar Akun</h2>
+    <h2 id="trModalTitle">Transfer Antar Akun</h2>
     <div class="swap-row"><div class="m-field"><label>Dari Akun</label><select id="trFrom"></select></div><div class="swap-icon">⇄</div><div class="m-field"><label>Ke Akun</label><select id="trTo"></select></div></div>
     <div class="field-row-flex"><div class="m-field"><label>Jumlah (Rp)</label><input type="number" id="trAmount" placeholder="0" min="0"></div><button type="button" class="calc-btn" onclick="openCalculator('trAmount')" title="Kalkulator">🧮</button></div>
     <div class="m-field"><label>Catatan (opsional)</label><input id="trNote" placeholder="Top up e-wallet…"></div>
     <div class="m-field"><label>Tanggal</label><input type="date" id="trDate"></div>
-    <div class="modal-actions"><button class="app-btn secondary" onclick="closeTrModal()">Batal</button><button class="app-btn violet" id="saveTrBtn" onclick="saveTr()">Transfer</button></div>
+    <div class="modal-actions">
+      <button class="app-btn secondary" onclick="closeTrModal()">Batal</button>
+      <button class="app-btn danger" id="deleteTrModalBtn" style="display:none;" onclick="deleteTrFromModal()">🗑 Hapus</button>
+      <button class="app-btn violet" id="saveTrBtn" onclick="saveTr()">Transfer</button>
+    </div>
   </div>
 </div>
 
@@ -1006,6 +1017,7 @@ let _selectedColor = 'gold';
 
 const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 const today = () => new Date().toISOString().slice(0,10);
+const nowTime = () => new Date().toTimeString().slice(0,5);
 const mk = d => d ? d.slice(0,7) : '';
 const curMk = () => today().slice(0,7);
 
@@ -1275,11 +1287,31 @@ function switchTab(mode) {
   document.getElementById('authStatus').className='status-box';
   const fieldFullName = document.getElementById('fieldFullName');
   fieldFullName.style.display = mode === 'register' ? 'block' : 'none';
+  const forgotLink = document.getElementById('forgotPassLink');
+  if (forgotLink) forgotLink.style.display = mode === 'login' ? 'block' : 'none';
 }
 
 function showAuthStatus(msg, type='error') {
   const el = document.getElementById('authStatus');
   el.textContent = msg; el.className = 'status-box show ' + type;
+}
+
+async function sendLoginPasswordReset() {
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email) { showAuthStatus('Isi dulu email kamu di atas, lalu klik "Lupa password?" lagi.'); return; }
+
+  const link = document.querySelector('#forgotPassLink span');
+  const originalText = link.textContent;
+  link.textContent = 'Mengirim...';
+
+  const { error } = await _supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+
+  link.textContent = originalText;
+
+  if (error) { showAuthStatus('❌ ' + error.message); return; }
+  showAuthStatus(`✅ Link reset password terkirim ke ${email}. Cek inbox/spam, lalu klik link di email untuk atur password baru.`, 'success');
 }
 
 async function doAuth() {
@@ -1706,8 +1738,15 @@ async function loadAccounts() {
 
 async function loadAllData() {
   const uid = currentUser.id;
-  const [txRes, trRes, bdRes, obRes, catRes] = await Promise.all([
-    _supabase.from('transactions').select('*').eq('user_id', uid).order('date', {ascending:false}),
+
+  // Ambil transaksi terpisah dulu supaya bisa fallback kalau kolom `time` belum ada (migrasi belum dijalankan)
+  let txRes = await _supabase.from('transactions').select('*').eq('user_id', uid).order('date', {ascending:false}).order('time', {ascending:false, nullsFirst:false});
+  if (txRes.error && /column .*time.* does not exist/i.test(txRes.error.message)) {
+    dbg('Kolom "time" belum ada di tabel transactions, urut berdasarkan tanggal saja. Jalankan migrasi SQL untuk fitur jam.', 'warn');
+    txRes = await _supabase.from('transactions').select('*').eq('user_id', uid).order('date', {ascending:false});
+  }
+
+  const [trRes, bdRes, obRes, catRes] = await Promise.all([
     _supabase.from('transfers').select('*').eq('user_id', uid).order('date', {ascending:false}),
     _supabase.from('budgets').select('*').eq('user_id', uid),
     _supabase.from('opening_balances').select('*').eq('user_id', uid),
@@ -2046,7 +2085,10 @@ function renderStats() {
 
 function txRowHTML(t,del){
   const a=ACCOUNTS_CFG.find(x=>x.id===t.account);
-  return `<tr><td>${new Date(t.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}</td><td>${t.description}</td><td>${a?a.name:t.account}</td><td><span class="tag ${t.type==='in'?'tag-in':'tag-out'}">${t.category}</span></td><td class="${t.type==='in'?'ain':'aout'}">${t.type==='in'?'+':'-'} ${fmt(t.amount)}</td>${del?`<td><button class="icon-btn" onclick="deleteTx(${t.id})" title="Hapus">✕</button></td>`:''}</tr>`;
+  const timeStr = t.time ? t.time.slice(0,5) : '';
+  const dateDisplay = new Date(t.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) + (timeStr ? `, ${timeStr}` : '');
+  const actions = del ? `<td><div style="display:flex;gap:2px;"><button class="icon-btn" onclick="editTx(${t.id})" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="icon-btn" onclick="deleteTx(${t.id})" title="Hapus">✕</button></div></td>` : '';
+  return `<tr><td>${dateDisplay}</td><td>${t.description}</td><td>${a?a.name:t.account}</td><td><span class="tag ${t.type==='in'?'tag-in':'tag-out'}">${t.category}</span></td><td class="${t.type==='in'?'ain':'aout'}">${t.type==='in'?'+':'-'} ${fmt(t.amount)}</td>${actions}</tr>`;
 }
 function renderRecent(){
   const rows=[...transactions].slice(0,7);
@@ -2075,7 +2117,7 @@ function renderTxPage(){
 function renderTransfers(){
   document.getElementById('transferTbl').innerHTML=[...transfers].map(tr=>{
     const f=ACCOUNTS_CFG.find(a=>a.id===tr.from_account),t2=ACCOUNTS_CFG.find(a=>a.id===tr.to_account);
-    return `<tr><td>${new Date(tr.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}</td><td>${f?f.name:tr.from_account}</td><td>${t2?t2.name:tr.to_account}</td><td>${tr.note||'—'}</td><td class="atr">${fmt(tr.amount)}</td><td><button class="icon-btn" onclick="deleteTr(${tr.id})" title="Hapus">✕</button></td></tr>`;
+    return `<tr><td>${new Date(tr.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}</td><td>${f?f.name:tr.from_account}</td><td>${t2?t2.name:tr.to_account}</td><td>${tr.note||'—'}</td><td class="atr">${fmt(tr.amount)}</td><td><div style="display:flex;gap:2px;"><button class="icon-btn" onclick="editTr(${tr.id})" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="icon-btn" onclick="deleteTr(${tr.id})" title="Hapus">✕</button></div></td></tr>`;
   }).join('');
   document.getElementById('trEmpty').style.display=transfers.length?'none':'block';
 }
@@ -2123,34 +2165,114 @@ function renderAll(){renderAccounts();renderStats();renderRecent();renderTxPage(
    MODALS
 ════════════════════════════════════════════════ */
 let txType='in';
-function openTxModal(){document.getElementById('iDate').value=today();document.getElementById('iDesc').value='';document.getElementById('iAmount').value='';setTxType('in');document.getElementById('iAccount').innerHTML=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');document.getElementById('txOverlay').classList.add('active');pushOverlayState('txOverlay');}
+let editingTxId=null;
+function openTxModal(){
+  editingTxId=null;
+  document.getElementById('txModalTitle').textContent='Tambah Transaksi';
+  document.getElementById('saveTxBtn').textContent='Simpan';
+  document.getElementById('deleteTxModalBtn').style.display='none';
+  document.getElementById('iDate').value=today();
+  document.getElementById('iTime').value=nowTime();
+  document.getElementById('iDesc').value='';
+  document.getElementById('iAmount').value='';
+  document.getElementById('iAccount').innerHTML=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  setTxType('in');
+  document.getElementById('txOverlay').classList.add('active');pushOverlayState('txOverlay');
+}
+function editTx(id){
+  const t=transactions.find(x=>x.id===id);
+  if(!t) return;
+  editingTxId=id;
+  document.getElementById('txModalTitle').textContent='Edit Transaksi';
+  document.getElementById('saveTxBtn').textContent='Update';
+  document.getElementById('deleteTxModalBtn').style.display='';
+  document.getElementById('deleteTxModalBtn').dataset.id=id;
+  document.getElementById('iAccount').innerHTML=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  setTxType(t.type);
+  document.getElementById('iDesc').value=t.description;
+  document.getElementById('iAmount').value=t.amount;
+  document.getElementById('iAccount').value=t.account;
+  document.getElementById('iCategory').value=t.category;
+  document.getElementById('iDate').value=t.date;
+  document.getElementById('iTime').value=(t.time||'00:00').slice(0,5);
+  document.getElementById('txOverlay').classList.add('active');pushOverlayState('txOverlay');
+}
 function closeTxModal(){popOverlayState('txOverlay');}
 function setTxType(t){txType=t;document.getElementById('btnIn').classList.toggle('active',t==='in');document.getElementById('btnOut').classList.toggle('active',t==='out');document.getElementById('iCategory').innerHTML=(t==='in'?allCatIn():allCatOut()).map(c=>`<option value="${c}">${c}</option>`).join('');}
 async function saveTx(){
-  const desc=document.getElementById('iDesc').value.trim(),amount=parseFloat(document.getElementById('iAmount').value),account=document.getElementById('iAccount').value,category=document.getElementById('iCategory').value,date=document.getElementById('iDate').value;
+  const desc=document.getElementById('iDesc').value.trim(),amount=parseFloat(document.getElementById('iAmount').value),account=document.getElementById('iAccount').value,category=document.getElementById('iCategory').value,date=document.getElementById('iDate').value,time=document.getElementById('iTime').value||'00:00';
   if(!desc||!amount||amount<=0||!date){alert('Lengkapi semua data.');return;}
-  const btn=document.getElementById('saveTxBtn');btn.disabled=true;btn.textContent='Menyimpan...';
-  setSyncStatus('syncing','Menyimpan...');
-  const {error}=await _supabase.from('transactions').insert({user_id:currentUser.id,type:txType,description:desc,amount,account,category,date});
-  btn.disabled=false;btn.textContent='Simpan';
+  const btn=document.getElementById('saveTxBtn');btn.disabled=true;btn.textContent=editingTxId?'Mengupdate...':'Menyimpan...';
+  setSyncStatus('syncing',editingTxId?'Mengupdate...':'Menyimpan...');
+  const payload={type:txType,description:desc,amount,account,category,date,time};
+  let error;
+  if(editingTxId){
+    ({error}=await _supabase.from('transactions').update(payload).eq('id',editingTxId).eq('user_id',currentUser.id));
+  } else {
+    ({error}=await _supabase.from('transactions').insert({user_id:currentUser.id,...payload}));
+  }
+  btn.disabled=false;btn.textContent=editingTxId?'Update':'Simpan';
   if(error){alert('Error: '+error.message);setSyncStatus('error','Gagal');return;}
   closeTxModal();await loadAllData();renderAll();
 }
+async function deleteTxFromModal(){
+  const id=parseInt(document.getElementById('deleteTxModalBtn').dataset.id);
+  closeTxModal();
+  await deleteTx(id);
+}
 async function deleteTx(id){if(!confirm('Hapus transaksi ini?'))return;setSyncStatus('syncing','Menghapus...');await _supabase.from('transactions').delete().eq('id',id).eq('user_id',currentUser.id);await loadAllData();renderAll();}
 
-function openTransferModal(){const opts=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name} (${fmt(getBalance(a.id))})</option>`).join('');document.getElementById('trFrom').innerHTML=opts;document.getElementById('trTo').innerHTML=opts;document.getElementById('trTo').selectedIndex=1;document.getElementById('trAmount').value='';document.getElementById('trNote').value='';document.getElementById('trDate').value=today();document.getElementById('trOverlay').classList.add('active');pushOverlayState('trOverlay');}
+let editingTrId=null;
+function openTransferModal(){
+  editingTrId=null;
+  document.getElementById('trModalTitle').textContent='Transfer Antar Akun';
+  document.getElementById('saveTrBtn').textContent='Transfer';
+  document.getElementById('deleteTrModalBtn').style.display='none';
+  const opts=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name} (${fmt(getBalance(a.id))})</option>`).join('');
+  document.getElementById('trFrom').innerHTML=opts;document.getElementById('trTo').innerHTML=opts;document.getElementById('trTo').selectedIndex=1;
+  document.getElementById('trAmount').value='';document.getElementById('trNote').value='';document.getElementById('trDate').value=today();
+  document.getElementById('trOverlay').classList.add('active');pushOverlayState('trOverlay');
+}
+function editTr(id){
+  const tr=transfers.find(x=>x.id===id);
+  if(!tr) return;
+  editingTrId=id;
+  document.getElementById('trModalTitle').textContent='Edit Transfer';
+  document.getElementById('saveTrBtn').textContent='Update';
+  document.getElementById('deleteTrModalBtn').style.display='';
+  document.getElementById('deleteTrModalBtn').dataset.id=id;
+  const opts=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name} (${fmt(getBalance(a.id))})</option>`).join('');
+  document.getElementById('trFrom').innerHTML=opts;document.getElementById('trTo').innerHTML=opts;
+  document.getElementById('trFrom').value=tr.from_account;
+  document.getElementById('trTo').value=tr.to_account;
+  document.getElementById('trAmount').value=tr.amount;
+  document.getElementById('trNote').value=tr.note||'';
+  document.getElementById('trDate').value=tr.date;
+  document.getElementById('trOverlay').classList.add('active');pushOverlayState('trOverlay');
+}
 function closeTrModal(){popOverlayState('trOverlay');}
 async function saveTr(){
   const from=document.getElementById('trFrom').value,to=document.getElementById('trTo').value,amount=parseFloat(document.getElementById('trAmount').value),note=document.getElementById('trNote').value.trim(),date=document.getElementById('trDate').value;
   if(from===to){alert('Akun asal dan tujuan tidak boleh sama.');return;}
   if(!amount||amount<=0||!date){alert('Lengkapi jumlah dan tanggal.');return;}
   const fromBal=getBalance(from);if(amount>fromBal&&!confirm(`Saldo ${ACCOUNTS_CFG.find(a=>a.id===from).name} hanya ${fmt(fromBal)}. Tetap lanjutkan?`))return;
-  const btn=document.getElementById('saveTrBtn');btn.disabled=true;btn.textContent='Memproses...';
-  setSyncStatus('syncing','Menyimpan transfer...');
-  const {error}=await _supabase.from('transfers').insert({user_id:currentUser.id,from_account:from,to_account:to,amount,note,date});
-  btn.disabled=false;btn.textContent='Transfer';
+  const btn=document.getElementById('saveTrBtn');btn.disabled=true;btn.textContent=editingTrId?'Mengupdate...':'Memproses...';
+  setSyncStatus('syncing',editingTrId?'Mengupdate transfer...':'Menyimpan transfer...');
+  const payload={from_account:from,to_account:to,amount,note,date};
+  let error;
+  if(editingTrId){
+    ({error}=await _supabase.from('transfers').update(payload).eq('id',editingTrId).eq('user_id',currentUser.id));
+  } else {
+    ({error}=await _supabase.from('transfers').insert({user_id:currentUser.id,...payload}));
+  }
+  btn.disabled=false;btn.textContent=editingTrId?'Update':'Transfer';
   if(error){alert('Error: '+error.message);setSyncStatus('error','Gagal');return;}
   closeTrModal();await loadAllData();renderAll();
+}
+async function deleteTrFromModal(){
+  const id=parseInt(document.getElementById('deleteTrModalBtn').dataset.id);
+  closeTrModal();
+  await deleteTr(id);
 }
 async function deleteTr(id){if(!confirm('Hapus transfer ini?'))return;setSyncStatus('syncing','Menghapus...');await _supabase.from('transfers').delete().eq('id',id).eq('user_id',currentUser.id);await loadAllData();renderAll();}
 
