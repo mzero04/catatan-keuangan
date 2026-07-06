@@ -127,8 +127,48 @@ body{background:radial-gradient(1200px 800px at 80% -10%,#14233f,var(--bg) 55%);
 /* ── APP ── */
 #app{display:none;}
 #app.visible{display:flex;}
-.sidebar{width:240px;flex-shrink:0;background:var(--bg-soft);border-right:1px solid var(--line);padding:28px 18px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sidebar{width:240px;flex-shrink:0;position:sticky;top:0;height:100vh;transition:width .18s ease;overflow:visible;z-index:10;}
+.sidebar-inner{width:240px;height:100%;background:var(--bg-soft);border-right:1px solid var(--line);padding:28px 18px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;overflow-x:hidden;transition:width .18s ease;}
+.sidebar-toggle{background:none;border:1px solid var(--line);color:var(--muted);width:26px;height:26px;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;}
+.sidebar-toggle:hover{color:var(--mint);border-color:var(--mint);}
+.sidebar-toggle svg{width:14px;height:14px;transition:transform .18s ease;}
+/* ── Collapsed (desktop only ≥769px): sidebar menyempit jadi ikon saja ── */
+@media(min-width:769px){
+.sidebar.collapsed{width:68px;}
+.sidebar.collapsed .sidebar-inner{width:68px;padding:28px 10px;}
+.sidebar.collapsed .brand-text,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .sidebar-bottom{display:none;}
+.sidebar.collapsed .brand{justify-content:center;}
+.sidebar.collapsed .sidebar-toggle svg{transform:rotate(180deg);}
+.sidebar.collapsed .nav-item{justify-content:center;padding:11px 0;}
+/* ── Hover saat collapsed: sidebar-inner "keluar" sebagai overlay, TIDAK mendorong konten ── */
+.sidebar.collapsed:hover .sidebar-inner{
+  position:absolute;top:0;left:0;
+  width:240px;height:100%;padding:28px 18px;
+  z-index:150;
+  box-shadow:14px 0 32px -12px rgba(0,0,0,.55);
+}
+.sidebar.collapsed:hover .brand-text,
+.sidebar.collapsed:hover .nav-label,
+.sidebar.collapsed:hover .sidebar-bottom{display:block;}
+.sidebar.collapsed:hover .brand{justify-content:flex-start;}
+.sidebar.collapsed:hover .sidebar-toggle svg{transform:rotate(0deg);}
+.sidebar.collapsed:hover .nav-item{justify-content:flex-start;padding:11px 14px;}
+/* ── Mini collapsed footer: foto profil + sync dot ── */
+.sidebar-mini{display:none;}
+.sidebar.collapsed .sidebar-mini{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  margin-top:auto;padding:14px 0 10px;
+}
+.sidebar-mini-sync-wrap{
+  position:relative;width:34px;height:14px;
+  display:flex;align-items:center;justify-content:center;
+}
+.sidebar.collapsed:hover .sidebar-mini{display:none;}
+}
 .brand{font-family:'Sora',sans-serif;font-weight:800;font-size:20px;letter-spacing:-.02em;display:flex;align-items:center;gap:10px;margin-bottom:28px;padding:0 8px;}
+.brand-text{flex:1;min-width:0;}
 .brand .dot{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,var(--mint),var(--gold));}
 .brand small{color:var(--muted);font-weight:500;font-size:10.5px;display:block;margin-top:1px;letter-spacing:.04em;}
 .nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;color:var(--muted);cursor:pointer;font-weight:600;font-size:14px;transition:.15s;user-select:none;}
@@ -148,7 +188,7 @@ body{background:radial-gradient(1200px 800px at 80% -10%,#14233f,var(--bg) 55%);
 .logout-btn{background:none;border:1px solid var(--line);color:var(--muted);padding:7px 10px;border-radius:7px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;width:100%;transition:.15s;}
 .logout-btn:hover{color:var(--coral);border-color:var(--coral);}
 
-.main{flex:1;padding:32px 40px 60px;max-width:1300px;}
+.main{flex:1;min-width:0;padding:32px 40px 60px;}
 .page-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;gap:20px;flex-wrap:wrap;}
 .page-head h1{font-family:'Sora',sans-serif;font-size:28px;font-weight:700;letter-spacing:-.01em;}
 .page-head p{color:var(--muted);font-size:14px;margin-top:4px;}
@@ -269,6 +309,11 @@ tr:last-child td{border-bottom:none;}
 .calc-grid .calc-op{color:var(--mint);}
 .calc-grid .calc-clear{color:var(--coral);}
 .calc-grid .calc-eq{background:var(--mint);color:#06281F;border-color:var(--mint);}
+.tx-summary-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:900px){.tx-summary-stats{grid-template-columns:repeat(2,1fr);}}
+.tx-stat{background:var(--bg-soft);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+.tx-stat-label{font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:6px;}
+.tx-stat-value{font-family:'Sora',sans-serif;font-size:18px;font-weight:700;color:var(--text);}
 .cat-manage-row{display:flex;align-items:center;justify-content:space-between;padding:9px 4px;border-bottom:1px solid var(--line);background:var(--card-hi);border-radius:6px;margin-bottom:2px;touch-action:none;}
 .cat-manage-row:last-child{border-bottom:none;}
 .cat-manage-row.dragging{opacity:.45;background:var(--bg-soft);}
@@ -304,7 +349,8 @@ tr:last-child td{border-bottom:none;}
 .mobile-sync{width:7px;height:7px;border-radius:50%;background:var(--mint);flex-shrink:0;}
 .mobile-sync.syncing{background:var(--gold);animation:pulse 1s infinite;}
 .mobile-sync.error{background:var(--coral);}
-.mobile-user-btn{background:var(--card-hi);border:1px solid var(--line);color:var(--muted);padding:6px 12px;border-radius:8px;font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mobile-user-info{display:flex;align-items:center;gap:7px;background:var(--card-hi);border:1px solid var(--line);padding:4px 10px 4px 5px;border-radius:20px;cursor:pointer;max-width:150px;overflow:hidden;}
+.mobile-topbar-name{font-size:12px;font-family:'Inter',sans-serif;color:var(--fg);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;}
 
 /* ── MOBILE USER DRAWER ── */
 .mobile-drawer{display:none;position:fixed;inset:0;z-index:500;flex-direction:column;justify-content:flex-end;}
@@ -383,18 +429,24 @@ tr:last-child td{border-bottom:none;}
   .carousel-dots{display:flex;}
 
   /* Sidebar → Bottom Navigation */
-  .sidebar{
+  .sidebar,.sidebar.collapsed{
+    display:flex;
     position:fixed;bottom:0;left:0;right:0;top:auto;
-    width:100%;height:auto;
+    width:100%;height:auto;min-height:62px;
     flex-direction:row;align-items:center;justify-content:space-around;
     padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+    background:var(--card);
     border-right:none;border-top:1px solid var(--line);
     border-radius:16px 16px 0 0;
-    gap:0;z-index:45;overflow:visible;
+    gap:0;z-index:45;overflow:hidden;
     box-shadow:0 -4px 24px rgba(0,0,0,.3);
   }
+  /* Struktur baru (.sidebar-inner) dinetralkan di mobile supaya nav-item tetap jadi flex child langsung dari .sidebar, persis seperti sebelumnya */
+  .sidebar-inner{display:contents;}
   .brand{display:none;}
   .sidebar-bottom{display:none;}
+  .sidebar-toggle{display:none;}
+  .sidebar-mini{display:none!important;}
   .nav-item{
     flex-direction:column;align-items:center;justify-content:center;
     gap:3px;padding:8px 4px;flex:1;
@@ -513,11 +565,14 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <!-- ── MOBILE TOP BAR ── -->
-<div class="mobile-topbar" id="mobileTopbar" style="display:none;">
+<div class="mobile-topbar" id="mobileTopbar">
   <div class="mobile-brand"><div class="dot"></div>Money Tracker</div>
   <div class="mobile-meta">
     <span class="mobile-sync" id="mobileSyncDot"></span>
-    <button class="mobile-user-btn" onclick="openMobileDrawer()" id="mobileUserBtn">Akun</button>
+    <div class="mobile-user-info" onclick="openMobileDrawer()">
+      <div id="mobileTopbarAvatar" style="width:28px;height:28px;border-radius:50%;background:var(--card-hi);border:1px solid var(--line);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--mint);flex-shrink:0;">—</div>
+      <span id="mobileTopbarName" class="mobile-topbar-name">Akun</span>
+    </div>
   </div>
 </div>
 
@@ -636,25 +691,39 @@ tr:last-child td{border-bottom:none;}
      APP
 ═══════════════════════════════════════════════════ -->
 <div id="app">
-  <div class="sidebar">
-    <div class="brand"><div class="dot"></div><div>Money Tracker<small>Pengelola Keuangan</small></div></div>
+  <div class="sidebar" id="sidebar">
+   <div class="sidebar-inner">
+    <div class="brand">
+      <div class="dot"></div>
+      <div class="brand-text">Money Tracker<small>Pengelola Keuangan</small></div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()" title="Sembunyikan/Tampilkan menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+    </div>
     <div class="nav-item active" data-page="dashboard">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span class="nav-label">Dashboard</span>
     </div>
     <div class="nav-item" data-page="transactions">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg>Transaksi
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg><span class="nav-label">Transaksi</span>
     </div>
     <div class="nav-item" data-page="accounts">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/></svg>Akun Bank
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/></svg><span class="nav-label">Akun Bank</span>
     </div>
     <div class="nav-item" data-page="transfer">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10l-4 4 4 4M3 14h13M17 4l4 4-4 4M21 8H8"/></svg>Transfer
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10l-4 4 4 4M3 14h13M17 4l4 4-4 4M21 8H8"/></svg><span class="nav-label">Transfer</span>
     </div>
     <div class="nav-item" data-page="budget">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Budgeting
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span class="nav-label">Budgeting</span>
     </div>
     <div class="nav-item" data-page="profile">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg>Profil
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg><span class="nav-label">Profil</span>
+    </div>
+    <!-- Mini collapsed footer: hanya foto profil + sync dot, muncul saat sidebar collapsed -->
+    <div class="sidebar-mini">
+      <div class="sidebar-mini-sync-wrap" title="Status sinkronisasi">
+        <span id="syncDotMini" class="sync-dot"></span>
+      </div>
+      <div id="sidebarAvatarMini" style="width:34px;height:34px;border-radius:50%;background:var(--card-hi);border:1px solid var(--line);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--mint);flex-shrink:0;cursor:pointer;" onclick="goPage('profile')" title="Profil">—</div>
     </div>
     <div class="sidebar-bottom">
       <div class="sync-bar">
@@ -672,6 +741,7 @@ tr:last-child td{border-bottom:none;}
         <button class="logout-btn" onclick="doLogout()" style="margin-top:2px;">Keluar</button>
       </div>
     </div>
+   </div>
   </div>
 
   <div class="main">
@@ -716,6 +786,16 @@ tr:last-child td{border-bottom:none;}
         <select id="fType" onchange="renderTxPage()"><option value="">Semua Tipe</option><option value="in">Pemasukan</option><option value="out">Pengeluaran</option></select>
         <select id="fCat" onchange="renderTxPage()"><option value="">Semua Kategori</option></select>
         <input id="fSearch" placeholder="Cari deskripsi..." oninput="renderTxPage()">
+      </div>
+      <div class="card" style="margin-bottom:18px;">
+        <h3 style="margin-bottom:14px;">Ringkasan Hasil Filter</h3>
+        <div class="tx-summary-stats">
+          <div class="tx-stat"><div class="tx-stat-label">Jumlah Transaksi</div><div class="tx-stat-value" id="sumCount">0</div></div>
+          <div class="tx-stat"><div class="tx-stat-label">Total Pemasukan</div><div class="tx-stat-value" style="color:var(--mint);" id="sumIn">Rp 0</div></div>
+          <div class="tx-stat"><div class="tx-stat-label">Total Pengeluaran</div><div class="tx-stat-value" style="color:var(--coral);" id="sumOut">Rp 0</div></div>
+          <div class="tx-stat"><div class="tx-stat-label">Selisih</div><div class="tx-stat-value" id="sumNet">Rp 0</div></div>
+        </div>
+
       </div>
       <div class="card">
         <div class="tbl-wrap"><table><thead><tr><th>Tanggal</th><th>Deskripsi</th><th>Akun</th><th>Kategori</th><th>Jumlah</th><th></th></tr></thead><tbody id="allTx"></tbody></table></div>
@@ -866,7 +946,7 @@ tr:last-child td{border-bottom:none;}
     <div class="swap-row"><div class="m-field"><label>Dari Akun</label><select id="trFrom"></select></div><div class="swap-icon">⇄</div><div class="m-field"><label>Ke Akun</label><select id="trTo"></select></div></div>
     <div class="field-row-flex"><div class="m-field"><label>Jumlah (Rp)</label><input type="number" id="trAmount" placeholder="0" min="0"></div><button type="button" class="calc-btn" onclick="openCalculator('trAmount')" title="Kalkulator">🧮</button></div>
     <div class="m-field"><label>Catatan (opsional)</label><input id="trNote" placeholder="Top up e-wallet…"></div>
-    <div class="m-field"><label>Tanggal</label><input type="date" id="trDate"></div>
+    <div class="field-row-flex"><div class="m-field"><label>Tanggal</label><input type="date" id="trDate"></div><div class="m-field"><label>Jam</label><input type="time" id="trTime"></div></div>
     <div class="modal-actions">
       <button class="app-btn secondary" onclick="closeTrModal()">Batal</button>
       <button class="app-btn danger" id="deleteTrModalBtn" style="display:none;" onclick="deleteTrFromModal()">🗑 Hapus</button>
@@ -1400,8 +1480,8 @@ async function saveFullName() {
   document.getElementById('userName').textContent = displayName;
   const dg = document.getElementById('dashGreeting');
   if (dg) dg.textContent = 'Halo, ' + displayName.split(' ')[0] + ' 👋';
-  const mub = document.getElementById('mobileUserBtn');
-  if (mub) mub.textContent = displayName;
+  const mtn0 = document.getElementById('mobileTopbarName');
+  if (mtn0) mtn0.textContent = displayName;
   const dn = document.getElementById('drawerName');
   if (dn) dn.textContent = displayName;
   renderProfileUI();
@@ -1524,6 +1604,8 @@ function renderProfileUI() {
   const displayName = getDisplayName();
   const avatarUrl = getAvatarUrl();
   applyAvatarToEl(document.getElementById('sidebarAvatar'), displayName, avatarUrl);
+  applyAvatarToEl(document.getElementById('sidebarAvatarMini'), displayName, avatarUrl);
+  applyAvatarToEl(document.getElementById('mobileTopbarAvatar'), displayName, avatarUrl);
   applyAvatarToEl(document.getElementById('avatarPreview'), displayName, avatarUrl);
   const pfn = document.getElementById('profileFullName');
   if (pfn) pfn.value = displayName;
@@ -1673,6 +1755,7 @@ async function deleteCategory(name, type) {
 
 async function onLogin() {
   document.getElementById('authScreen').classList.remove('visible');
+  initSidebarState();
   const displayName = getDisplayName();
   document.getElementById('userName').textContent = displayName;
   document.getElementById('userEmail').textContent = currentUser.email;
@@ -1681,8 +1764,8 @@ async function onLogin() {
   // Mobile: tampilkan topbar dan isi info user
   const topbar = document.getElementById('mobileTopbar');
   if (topbar) topbar.style.display = '';
-  const mub = document.getElementById('mobileUserBtn');
-  if (mub) mub.textContent = displayName;
+  const mtn1 = document.getElementById('mobileTopbarName');
+  if (mtn1) mtn1.textContent = displayName;
   const de = document.getElementById('drawerEmail');
   if (de) de.textContent = currentUser.email;
   const dn = document.getElementById('drawerName');
@@ -1746,12 +1829,17 @@ async function loadAllData() {
     txRes = await _supabase.from('transactions').select('*').eq('user_id', uid).order('date', {ascending:false});
   }
 
-  const [trRes, bdRes, obRes, catRes] = await Promise.all([
-    _supabase.from('transfers').select('*').eq('user_id', uid).order('date', {ascending:false}),
+  const [trResRaw, bdRes, obRes, catRes] = await Promise.all([
+    _supabase.from('transfers').select('*').eq('user_id', uid).order('date', {ascending:false}).order('time', {ascending:false, nullsFirst:false}),
     _supabase.from('budgets').select('*').eq('user_id', uid),
     _supabase.from('opening_balances').select('*').eq('user_id', uid),
     _supabase.from('categories').select('*').eq('user_id', uid),
   ]);
+  let trRes = trResRaw;
+  if (trRes.error && /column .*time.* does not exist/i.test(trRes.error.message)) {
+    dbg('Kolom "time" belum ada di tabel transfers, urut berdasarkan tanggal saja. Jalankan migrasi SQL untuk fitur jam.', 'warn');
+    trRes = await _supabase.from('transfers').select('*').eq('user_id', uid).order('date', {ascending:false});
+  }
 
   if (txRes.error) throw new Error('Tabel transactions: ' + txRes.error.message);
   if (trRes.error) throw new Error('Tabel transfers: ' + trRes.error.message);
@@ -1858,6 +1946,9 @@ function setSyncStatus(state, text) {
   if (!dot) return;
   dot.className = 'sync-dot'+(state==='syncing'?' syncing':state==='error'?' error':'');
   lbl.textContent = text;
+  // Sinkronkan ke mini collapsed indicator
+  const dotMini = document.getElementById('syncDotMini');
+  if (dotMini) dotMini.className = 'sync-dot'+(state==='syncing'?' syncing':state==='error'?' error':'');
   // Sinkronkan ke mobile indicators
   const cls = 'mobile-sync'+(state==='syncing'?' syncing':state==='error'?' error':'');
   const md = document.getElementById('mobileSyncDot');
@@ -1906,14 +1997,29 @@ function getBalance(accId) {
    NAVIGATION
 ════════════════════════════════════════════════ */
 document.querySelectorAll('.nav-item').forEach(el => el.addEventListener('click', ()=>goPage(el.dataset.page)));
+/* ════════════════════════════════════════════════
+   SIDEBAR COLLAPSE (desktop) — status disimpan di localStorage
+════════════════════════════════════════════════ */
+const SIDEBAR_KEY = 'ledger_sidebar_collapsed';
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const collapsed = sb.classList.toggle('collapsed');
+  localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0');
+}
+function initSidebarState() {
+  const sb = document.getElementById('sidebar');
+  if (!sb) return;
+  if (localStorage.getItem(SIDEBAR_KEY) === '1') sb.classList.add('collapsed');
+}
+
 function goPage(name, fromPopstate) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   renderAll();
-  // FAB tambah transaksi hanya muncul di halaman Dashboard (mobile)
+  // FAB selalu tampil di semua halaman mobile agar navbar konsisten
   const fab = document.getElementById('mobileFab');
-  if (fab) fab.classList.toggle('show', name === 'dashboard');
+  if (fab) fab.classList.add('show');
   if (!fromPopstate) {
     history.pushState({page: name}, '', location.href);
   }
@@ -2086,7 +2192,8 @@ function renderStats() {
 function txRowHTML(t,del){
   const a=ACCOUNTS_CFG.find(x=>x.id===t.account);
   const timeStr = t.time ? t.time.slice(0,5) : '';
-  const dateDisplay = new Date(t.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) + (timeStr ? `, ${timeStr}` : '');
+  const dateStr = new Date(t.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+  const dateDisplay = timeStr ? `${dateStr}<div style="color:var(--muted);font-size:11px;margin-top:2px;">${timeStr}</div>` : dateStr;
   const actions = del ? `<td><div style="display:flex;gap:2px;"><button class="icon-btn" onclick="editTx(${t.id})" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="icon-btn" onclick="deleteTx(${t.id})" title="Hapus">✕</button></div></td>` : '';
   return `<tr><td>${dateDisplay}</td><td>${t.description}</td><td>${a?a.name:t.account}</td><td><span class="tag ${t.type==='in'?'tag-in':'tag-out'}">${t.category}</span></td><td class="${t.type==='in'?'ain':'aout'}">${t.type==='in'?'+':'-'} ${fmt(t.amount)}</td>${actions}</tr>`;
 }
@@ -2113,11 +2220,26 @@ function renderTxPage(){
   if(srch)list=list.filter(t=>t.description.toLowerCase().includes(srch));
   document.getElementById('allTx').innerHTML=list.map(t=>txRowHTML(t,true)).join('');
   document.getElementById('txEmpty').style.display=list.length?'none':'block';
+
+  // Ringkasan total (mengikuti hasil filter saat ini)
+  const totalIn = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
+  const totalOut = list.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
+  const net = totalIn - totalOut;
+  document.getElementById('sumCount').textContent = list.length;
+  document.getElementById('sumIn').textContent = fmt(totalIn);
+  document.getElementById('sumOut').textContent = fmt(totalOut);
+  const sumNetEl = document.getElementById('sumNet');
+  sumNetEl.textContent = (net<0?'-':'') + fmt(Math.abs(net));
+  sumNetEl.style.color = net>=0 ? 'var(--mint)' : 'var(--coral)';
+
 }
 function renderTransfers(){
   document.getElementById('transferTbl').innerHTML=[...transfers].map(tr=>{
     const f=ACCOUNTS_CFG.find(a=>a.id===tr.from_account),t2=ACCOUNTS_CFG.find(a=>a.id===tr.to_account);
-    return `<tr><td>${new Date(tr.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}</td><td>${f?f.name:tr.from_account}</td><td>${t2?t2.name:tr.to_account}</td><td>${tr.note||'—'}</td><td class="atr">${fmt(tr.amount)}</td><td><div style="display:flex;gap:2px;"><button class="icon-btn" onclick="editTr(${tr.id})" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="icon-btn" onclick="deleteTr(${tr.id})" title="Hapus">✕</button></div></td></tr>`;
+    const timeStr = tr.time ? tr.time.slice(0,5) : '';
+    const dateStr = new Date(tr.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+    const dateDisplay = timeStr ? `${dateStr}<div style="color:var(--muted);font-size:11px;margin-top:2px;">${timeStr}</div>` : dateStr;
+    return `<tr><td>${dateDisplay}</td><td>${f?f.name:tr.from_account}</td><td>${t2?t2.name:tr.to_account}</td><td>${tr.note||'—'}</td><td class="atr">${fmt(tr.amount)}</td><td><div style="display:flex;gap:2px;"><button class="icon-btn" onclick="editTr(${tr.id})" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="icon-btn" onclick="deleteTr(${tr.id})" title="Hapus">✕</button></div></td></tr>`;
   }).join('');
   document.getElementById('trEmpty').style.display=transfers.length?'none':'block';
 }
@@ -2230,7 +2352,8 @@ function openTransferModal(){
   document.getElementById('deleteTrModalBtn').style.display='none';
   const opts=ACCOUNTS_CFG.map(a=>`<option value="${a.id}">${a.name} (${fmt(getBalance(a.id))})</option>`).join('');
   document.getElementById('trFrom').innerHTML=opts;document.getElementById('trTo').innerHTML=opts;document.getElementById('trTo').selectedIndex=1;
-  document.getElementById('trAmount').value='';document.getElementById('trNote').value='';document.getElementById('trDate').value=today();
+  document.getElementById('trAmount').value='';document.getElementById('trNote').value='';
+  document.getElementById('trDate').value=today();document.getElementById('trTime').value=nowTime();
   document.getElementById('trOverlay').classList.add('active');pushOverlayState('trOverlay');
 }
 function editTr(id){
@@ -2248,17 +2371,18 @@ function editTr(id){
   document.getElementById('trAmount').value=tr.amount;
   document.getElementById('trNote').value=tr.note||'';
   document.getElementById('trDate').value=tr.date;
+  document.getElementById('trTime').value=(tr.time||'00:00').slice(0,5);
   document.getElementById('trOverlay').classList.add('active');pushOverlayState('trOverlay');
 }
 function closeTrModal(){popOverlayState('trOverlay');}
 async function saveTr(){
-  const from=document.getElementById('trFrom').value,to=document.getElementById('trTo').value,amount=parseFloat(document.getElementById('trAmount').value),note=document.getElementById('trNote').value.trim(),date=document.getElementById('trDate').value;
+  const from=document.getElementById('trFrom').value,to=document.getElementById('trTo').value,amount=parseFloat(document.getElementById('trAmount').value),note=document.getElementById('trNote').value.trim(),date=document.getElementById('trDate').value,time=document.getElementById('trTime').value||'00:00';
   if(from===to){alert('Akun asal dan tujuan tidak boleh sama.');return;}
   if(!amount||amount<=0||!date){alert('Lengkapi jumlah dan tanggal.');return;}
   const fromBal=getBalance(from);if(amount>fromBal&&!confirm(`Saldo ${ACCOUNTS_CFG.find(a=>a.id===from).name} hanya ${fmt(fromBal)}. Tetap lanjutkan?`))return;
   const btn=document.getElementById('saveTrBtn');btn.disabled=true;btn.textContent=editingTrId?'Mengupdate...':'Memproses...';
   setSyncStatus('syncing',editingTrId?'Mengupdate transfer...':'Menyimpan transfer...');
-  const payload={from_account:from,to_account:to,amount,note,date};
+  const payload={from_account:from,to_account:to,amount,note,date,time};
   let error;
   if(editingTrId){
     ({error}=await _supabase.from('transfers').update(payload).eq('id',editingTrId).eq('user_id',currentUser.id));
