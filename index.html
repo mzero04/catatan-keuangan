@@ -2059,6 +2059,7 @@ async function loadAllData() {
 
   // Load cicilan & pinjaman (Supabase, sinkron antar perangkat)
   await loadCicilan();
+  await migrateCicilanLocalToSupabase();
 
   setSyncStatus('ok', 'Tersinkron · ' + new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}));
 }
@@ -2843,6 +2844,60 @@ function bayarCicilan(cId){
   setTxType('out');
   document.getElementById('txOverlay').classList.add('active');
   pushOverlayState('txOverlay');
+}
+
+// ── MIGRASI: pindahkan data cicilan lama dari localStorage (per-device) ke Supabase ──
+// Berjalan otomatis sekali per perangkat, setelah tabel "cicilan" berhasil dibaca dari Supabase.
+// Aman dijalankan berkali-kali: item yang idnya sudah ada di cloud tidak akan diduplikasi,
+// dan tiap device menandai dirinya sendiri lewat flag di localStorage supaya tidak mengulang.
+function getCicilanMigrationFlagKey(){return 'ledger_cicilan_migrated_'+(currentUser?currentUser.id:'guest');}
+
+async function migrateCicilanLocalToSupabase(){
+  if(!currentUser||!_supabase||_cicilanUsesLocalFallback) return; // hanya migrasi kalau tabel cloud sudah siap
+  const flagKey=getCicilanMigrationFlagKey();
+  if(localStorage.getItem(flagKey)==='1') return; // perangkat ini sudah pernah dimigrasi
+
+  let localItems=[];
+  try{ localItems=JSON.parse(localStorage.getItem(getCicilanKey())||'[]'); }catch(e){ localItems=[]; }
+
+  if(!localItems.length){
+    localStorage.setItem(flagKey,'1');
+    return;
+  }
+
+  dbg('🔁 Ditemukan '+localItems.length+' data cicilan lokal di perangkat ini, memigrasi ke Supabase...','info');
+
+  const existingIds=new Set(cilanData.map(c=>c.id));
+  const rowsToInsert=localItems
+    .filter(c=>c && c.name && !existingIds.has(c.id))
+    .map(c=>({
+      id:c.id||('cl_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),
+      user_id:currentUser.id,
+      name:c.name,
+      type:c.type||'lainnya',
+      total_debt:Number(c.totalDebt)||0,
+      monthly_payment:Number(c.monthlyPayment)||0,
+      due_day:Number(c.dueDay)||1,
+      account_id:c.accountId||null,
+      created_at:c.createdAt?new Date(c.createdAt).toISOString():new Date().toISOString()
+    }));
+
+  if(!rowsToInsert.length){
+    // Semua item lokal ternyata sudah ada di cloud (misal sudah dimigrasi dari device lain dengan id sama)
+    localStorage.setItem(flagKey,'1');
+    return;
+  }
+
+  const {error}=await _supabase.from('cicilan').insert(rowsToInsert);
+  if(error){
+    dbg('❌ Migrasi cicilan gagal, akan dicoba lagi nanti: '+error.message,'err');
+    return; // jangan set flag, supaya dicoba ulang di sesi berikutnya
+  }
+
+  dbg('✅ Migrasi cicilan berhasil: '+rowsToInsert.length+' item dipindahkan ke Supabase.','ok');
+  localStorage.setItem(flagKey,'1');
+  await loadCicilan();
+  renderCicilanSection();
 }
 
 /* ════════════════════════════════════════════════
