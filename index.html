@@ -477,7 +477,7 @@ tr:last-child td{border-bottom:none;}
   .sidebar,.sidebar.collapsed{
     display:flex;
     position:fixed;bottom:0;left:0;right:0;top:auto;
-    width:100%;height:calc(62px + env(safe-area-inset-bottom));
+    width:100%;height:auto;min-height:62px;
     flex-direction:row;align-items:center;justify-content:space-around;
     padding:6px 4px calc(6px + env(safe-area-inset-bottom));
     background:var(--card);
@@ -494,15 +494,14 @@ tr:last-child td{border-bottom:none;}
   .sidebar-mini{display:none!important;}
   .nav-item{
     flex-direction:column;align-items:center;justify-content:center;
-    gap:3px;padding:6px 4px;flex:1;
+    gap:3px;padding:8px 4px;flex:1;
     font-size:10px;font-weight:600;
     border-radius:10px;min-width:0;
-    height:50px;overflow:hidden;
+    overflow:hidden;
   }
   .nav-item svg{width:20px;height:20px;flex-shrink:0;}
   .nav-item.active{box-shadow:none;background:var(--card-hi);}
-  /* label tidak wrap - tinggi navbar konsisten di semua halaman */
-  .nav-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%;line-height:1.2;}
+  .nav-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%;}
 
   /* Top bar muncul — grid 3 kolom agar tengah benar-benar di tengah */
   .mobile-topbar{display:grid;grid-template-columns:1fr auto 1fr;}
@@ -1956,7 +1955,6 @@ async function onLogin() {
     document.getElementById('loadingCover').classList.add('hidden');
     document.getElementById('app').classList.add('visible');
     initMonthFilter();
-    loadCicilan();
     renderAll();
     initBackButtonNav();
   } catch(e) {
@@ -2059,6 +2057,9 @@ async function loadAllData() {
   // Load akun (perlu selesai sebelum render)
   await loadAccounts();
 
+  // Load cicilan & pinjaman (Supabase, sinkron antar perangkat)
+  await loadCicilan();
+
   setSyncStatus('ok', 'Tersinkron · ' + new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}));
 }
 
@@ -2084,6 +2085,7 @@ function subscribeRealtime() {
     .on('postgres_changes',{event:'*',schema:'public',table:'budgets',filter:`user_id=eq.${currentUser.id}`}, onChange)
     .on('postgres_changes',{event:'*',schema:'public',table:'opening_balances',filter:`user_id=eq.${currentUser.id}`}, onChange)
     .on('postgres_changes',{event:'*',schema:'public',table:'accounts',filter:`user_id=eq.${currentUser.id}`}, onChange)
+    .on('postgres_changes',{event:'*',schema:'public',table:'cicilan',filter:`user_id=eq.${currentUser.id}`}, onChange)
     .subscribe(status => {
       dbg('📡 Status channel realtime: ' + status, status==='SUBSCRIBED'?'info':status==='CHANNEL_ERROR'?'err':'warn');
       if (status==='SUBSCRIBED') setSyncStatus('ok','Real-time aktif ✅');
@@ -2618,22 +2620,52 @@ function renderReportPage() {
 }
 
 /* ════════════════════════════════════════════════
-   CICILAN & PINJAMAN (data di localStorage per user)
+   CICILAN & PINJAMAN (tersimpan di Supabase, tersinkron
+   antar perangkat — fallback ke localStorage kalau tabel
+   "cicilan" belum dibuat di Supabase)
 ════════════════════════════════════════════════ */
 let cilanData=[];
 let editingCicilanId=null;
+let _cicilanUsesLocalFallback=false;
 const CICILAN_TYPES={kredit:'💳 Kartu Kredit',paylater:'🛍 PayLater',cicilan:'🏦 Cicilan',pinjaman:'💰 Pinjaman',lainnya:'📋 Lainnya'};
 
 function getCicilanKey(){return 'ledger_cicilan_'+(currentUser?currentUser.id:'guest');}
-function loadCicilan(){try{cilanData=JSON.parse(localStorage.getItem(getCicilanKey())||'[]');}catch(e){cilanData=[];}}
+function loadCicilanLocal(){try{cilanData=JSON.parse(localStorage.getItem(getCicilanKey())||'[]');}catch(e){cilanData=[];}}
 function saveCicilanStorage(){localStorage.setItem(getCicilanKey(),JSON.stringify(cilanData));}
+
+// Ubah baris DB (snake_case) -> objek JS (camelCase) yang dipakai kode render
+function _cicilanRowToObj(r){
+  return {id:r.id,name:r.name,type:r.type,totalDebt:Number(r.total_debt)||0,monthlyPayment:Number(r.monthly_payment)||0,dueDay:Number(r.due_day)||1,accountId:r.account_id,createdAt:r.created_at};
+}
+
+// Ambil data cicilan dari Supabase. Kalau tabelnya belum ada, fallback ke localStorage
+// (mode lama, tidak sinkron) supaya app tidak error, sambil kasih warning di console.
+async function loadCicilan(){
+  if(!currentUser||!_supabase){ loadCicilanLocal(); return; }
+  try{
+    const {data,error}=await _supabase.from('cicilan').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:true});
+    if(error){
+      dbg('Tabel "cicilan" belum tersedia di Supabase, pakai localStorage sementara (TIDAK sinkron antar perangkat): '+error.message,'warn');
+      _cicilanUsesLocalFallback=true;
+      loadCicilanLocal();
+      return;
+    }
+    _cicilanUsesLocalFallback=false;
+    cilanData=(data||[]).map(_cicilanRowToObj);
+  }catch(e){
+    dbg('Gagal memuat cicilan dari Supabase: '+e.message,'warn');
+    _cicilanUsesLocalFallback=true;
+    loadCicilanLocal();
+  }
+}
 
 function getPaidTotal(c){
   return transactions.filter(t=>t.type==='out'&&t.description===c.name&&Math.abs(t.amount-c.monthlyPayment)<1).reduce((s,t)=>s+t.amount,0);
 }
 
 function renderCicilanSection(){
-  loadCicilan();
+  // Catatan: cilanData sudah dimuat lewat loadCicilan() di loadAllData()/realtime,
+  // jadi di sini tinggal dirender saja (tidak reload sinkron dari sini).
   const listEl=document.getElementById('cicilanList');
   const emptyEl=document.getElementById('cicilanEmpty');
   const summEl=document.getElementById('cicilanSummary');
@@ -2717,7 +2749,7 @@ function openCicilanModal(editId){
 
 function closeCicilanModal(){popOverlayState('cicilanOverlay');}
 
-function saveCicilan(){
+async function saveCicilan(){
   const name=document.getElementById('cNama').value.trim();
   const type=document.getElementById('cTipe').value;
   const totalDebt=parseFloat(document.getElementById('cTotal').value);
@@ -2727,27 +2759,72 @@ function saveCicilan(){
   if(!name){alert('Masukkan nama cicilan.');return;}
   if(!totalDebt||totalDebt<=0||!monthlyPayment||monthlyPayment<=0){alert('Lengkapi total hutang dan cicilan per bulan.');return;}
   if(!dueDay||dueDay<1||dueDay>31){alert('Tanggal jatuh tempo harus antara 1–31.');return;}
-  loadCicilan();
-  if(editingCicilanId){
-    const idx=cilanData.findIndex(x=>x.id===editingCicilanId);
-    if(idx!==-1)cilanData[idx]={...cilanData[idx],name,type,totalDebt,monthlyPayment,dueDay,accountId};
-  } else {
-    cilanData.push({id:'cl_'+Date.now(),name,type,totalDebt,monthlyPayment,dueDay,accountId,createdAt:today()});
+
+  const saveBtn=document.getElementById('saveCicilanBtn');
+  if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Menyimpan...';}
+
+  try{
+    if(currentUser&&_supabase&&!_cicilanUsesLocalFallback){
+      setSyncStatus('syncing','Menyimpan cicilan...');
+      if(editingCicilanId){
+        const {error}=await _supabase.from('cicilan').update({
+          name,type,total_debt:totalDebt,monthly_payment:monthlyPayment,due_day:dueDay,account_id:accountId
+        }).eq('id',editingCicilanId).eq('user_id',currentUser.id);
+        if(error) throw error;
+      } else {
+        const {error}=await _supabase.from('cicilan').insert({
+          id:'cl_'+Date.now(),user_id:currentUser.id,name,type,total_debt:totalDebt,monthly_payment:monthlyPayment,due_day:dueDay,account_id:accountId,created_at:new Date().toISOString()
+        });
+        if(error) throw error;
+      }
+      await loadCicilan();
+      setSyncStatus('ok','Tersinkron · '+new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}));
+    } else {
+      // Fallback: tabel "cicilan" belum dibuat di Supabase — simpan lokal saja (tidak sinkron antar perangkat)
+      loadCicilanLocal();
+      if(editingCicilanId){
+        const idx=cilanData.findIndex(x=>x.id===editingCicilanId);
+        if(idx!==-1)cilanData[idx]={...cilanData[idx],name,type,totalDebt,monthlyPayment,dueDay,accountId};
+      } else {
+        cilanData.push({id:'cl_'+Date.now(),name,type,totalDebt,monthlyPayment,dueDay,accountId,createdAt:today()});
+      }
+      saveCicilanStorage();
+    }
+    closeCicilanModal();
+    renderCicilanSection();
+  }catch(e){
+    dbg('Gagal menyimpan cicilan: '+e.message,'err');
+    alert('Gagal menyimpan cicilan: '+e.message+'\n\nJika ini pertama kali, kemungkinan tabel "cicilan" belum dibuat di Supabase. Minta bantuan setup SQL-nya.');
+    setSyncStatus('error','Gagal menyimpan cicilan');
+  }finally{
+    if(saveBtn){saveBtn.disabled=false;saveBtn.textContent=editingCicilanId?'Simpan':'Simpan';}
   }
-  saveCicilanStorage();
-  closeCicilanModal();
-  renderCicilanSection();
 }
 
-function deleteCicilanItem(){
+async function deleteCicilanItem(){
   if(!editingCicilanId)return;
   const c=cilanData.find(x=>x.id===editingCicilanId);
   if(!confirm(`Hapus cicilan "${c?c.name:''}"?\n\nRiwayat pembayaran di transaksi TIDAK akan terhapus.`))return;
-  loadCicilan();
-  cilanData=cilanData.filter(x=>x.id!==editingCicilanId);
-  saveCicilanStorage();
-  closeCicilanModal();
-  renderCicilanSection();
+
+  try{
+    if(currentUser&&_supabase&&!_cicilanUsesLocalFallback){
+      setSyncStatus('syncing','Menghapus cicilan...');
+      const {error}=await _supabase.from('cicilan').delete().eq('id',editingCicilanId).eq('user_id',currentUser.id);
+      if(error) throw error;
+      await loadCicilan();
+      setSyncStatus('ok','Tersinkron · '+new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}));
+    } else {
+      loadCicilanLocal();
+      cilanData=cilanData.filter(x=>x.id!==editingCicilanId);
+      saveCicilanStorage();
+    }
+    closeCicilanModal();
+    renderCicilanSection();
+  }catch(e){
+    dbg('Gagal menghapus cicilan: '+e.message,'err');
+    alert('Gagal menghapus cicilan: '+e.message);
+    setSyncStatus('error','Gagal menghapus cicilan');
+  }
 }
 
 function bayarCicilan(cId){
