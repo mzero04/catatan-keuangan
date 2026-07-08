@@ -2381,7 +2381,7 @@ function txRowHTML(t,del){
   const timeStr = t.time ? t.time.slice(0,5) : '';
   const dateStr = new Date(t.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   const dateDisplay = timeStr ? `${dateStr}<div style="color:var(--muted);font-size:11px;margin-top:2px;">${timeStr}</div>` : dateStr;
-  const actions = del ? `<td><div style="display:flex;gap:2px;"><button class="icon-btn" onclick="editTx(${t.id})" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="icon-btn" onclick="deleteTx(${t.id})" title="Hapus">✕</button></div></td>` : '';
+  const actions = del ? `<td><div style="display:flex;gap:2px;"><button class="icon-btn" onclick="editTx('${t.id}')" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="icon-btn" onclick="deleteTx('${t.id}')" title="Hapus">✕</button></div></td>` : '';
   return `<tr><td>${dateDisplay}</td><td>${t.description}</td><td>${a?a.name:t.account}</td><td><span class="tag ${t.type==='in'?'tag-in':'tag-out'}">${t.category}</span></td><td class="${t.type==='in'?'ain':'aout'}">${t.type==='in'?'+':'-'} ${fmt(t.amount)}</td>${actions}</tr>`;
 }
 function renderRecent(){
@@ -2430,7 +2430,7 @@ function renderTransfers(){
     const timeStr = tr.time ? tr.time.slice(0,5) : '';
     const dateStr = new Date(tr.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
     const dateDisplay = timeStr ? `${dateStr}<div style="color:var(--muted);font-size:11px;margin-top:2px;">${timeStr}</div>` : dateStr;
-    return `<tr><td>${dateDisplay}</td><td>${f?f.name:tr.from_account}</td><td>${t2?t2.name:tr.to_account}</td><td>${tr.note||'—'}</td><td class="atr">${fmt(tr.amount)}</td><td><div style="display:flex;gap:2px;"><button class="icon-btn" onclick="editTr(${tr.id})" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="icon-btn" onclick="deleteTr(${tr.id})" title="Hapus">✕</button></div></td></tr>`;
+    return `<tr><td>${dateDisplay}</td><td>${f?f.name:tr.from_account}</td><td>${t2?t2.name:tr.to_account}</td><td>${tr.note||'—'}</td><td class="atr">${fmt(tr.amount)}</td><td><div style="display:flex;gap:2px;"><button class="icon-btn" onclick="editTr('${tr.id}')" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button><button class="icon-btn" onclick="deleteTr('${tr.id}')" title="Hapus">✕</button></div></td></tr>`;
   }).join('');
   document.getElementById('trEmpty').style.display=transfers.length?'none':'block';
 }
@@ -2919,7 +2919,7 @@ function openTxModal(){
   document.getElementById('txOverlay').classList.add('active');pushOverlayState('txOverlay');
 }
 function editTx(id){
-  const t=transactions.find(x=>x.id===id);
+  const t=transactions.find(x=>String(x.id)===String(id));
   if(!t) return;
   editingTxId=id;
   document.getElementById('txModalTitle').textContent='Edit Transaksi';
@@ -2955,11 +2955,11 @@ async function saveTx(){
   closeTxModal();await loadAllData();renderAll();
 }
 async function deleteTxFromModal(){
-  const id=parseInt(document.getElementById('deleteTxModalBtn').dataset.id);
+  const id=document.getElementById('deleteTxModalBtn').dataset.id;
   closeTxModal();
   await deleteTx(id);
 }
-async function deleteTx(id){if(!confirm('Hapus transaksi ini?'))return;setSyncStatus('syncing','Menghapus...');await _supabase.from('transactions').delete().eq('id',id).eq('user_id',currentUser.id);await loadAllData();renderAll();}
+async function deleteTx(id){if(!confirm('Hapus transaksi ini?'))return;setSyncStatus('syncing','Menghapus...');const {error}=await _supabase.from('transactions').delete().eq('id',id).eq('user_id',currentUser.id);if(error){alert('Gagal menghapus: '+error.message);setSyncStatus('error','Gagal');return;}await loadAllData();renderAll();}
 
 let editingTrId=null;
 function openTransferModal(){
@@ -2974,7 +2974,7 @@ function openTransferModal(){
   document.getElementById('trOverlay').classList.add('active');pushOverlayState('trOverlay');
 }
 function editTr(id){
-  const tr=transfers.find(x=>x.id===id);
+  const tr=transfers.find(x=>String(x.id)===String(id));
   if(!tr) return;
   editingTrId=id;
   document.getElementById('trModalTitle').textContent='Edit Transfer';
@@ -3011,11 +3011,11 @@ async function saveTr(){
   closeTrModal();await loadAllData();renderAll();
 }
 async function deleteTrFromModal(){
-  const id=parseInt(document.getElementById('deleteTrModalBtn').dataset.id);
+  const id=document.getElementById('deleteTrModalBtn').dataset.id;
   closeTrModal();
   await deleteTr(id);
 }
-async function deleteTr(id){if(!confirm('Hapus transfer ini?'))return;setSyncStatus('syncing','Menghapus...');await _supabase.from('transfers').delete().eq('id',id).eq('user_id',currentUser.id);await loadAllData();renderAll();}
+async function deleteTr(id){if(!confirm('Hapus transfer ini?'))return;setSyncStatus('syncing','Menghapus...');const {error}=await _supabase.from('transfers').delete().eq('id',id).eq('user_id',currentUser.id);if(error){alert('Gagal menghapus: '+error.message);setSyncStatus('error','Gagal');return;}await loadAllData();renderAll();}
 
 function openBudgetModal(editCat){
   const catSel = document.getElementById('bCat');
