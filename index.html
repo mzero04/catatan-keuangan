@@ -4141,7 +4141,18 @@ function closeMoreDrawer() {
   popOverlayState('mobileMoreDrawer');
 }
 function goPageFromMore(name) {
-  closeMoreDrawer();
+  // Tutup drawer secara sinkron (tanpa history.back() yang async) supaya tidak
+  // "balapan" dengan navigasi halaman baru dan malah kembali ke halaman sebelumnya.
+  const d = document.getElementById('mobileMoreDrawer');
+  if (d) d.classList.remove('open');
+  if (_currentOverlayId === 'mobileMoreDrawer' && history.state && history.state.overlay === 'mobileMoreDrawer') {
+    _currentOverlayId = null;
+    // Ganti entry overlay saat ini dengan entry halaman sebelumnya (tanpa memicu popstate),
+    // supaya history tetap rapi sebelum kita push halaman tujuan.
+    history.replaceState({page: history.state.page}, '', location.href);
+  } else {
+    _currentOverlayId = null;
+  }
   goPage(name);
 }
 
